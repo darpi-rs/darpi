@@ -5,7 +5,7 @@ authors = ["Petar Dambovaliev <petar.atanasov.1987@gmail.com>"]
 edition = "2018"
 description = "A web framework with type safety and speed in mind"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/petar-dambovaliev/darpi.git"
+repository = "https://github.com/rust-darpi/darpi.git"
 keywords = ["darpi", "http", "web", "framework", "api"]
 categories = ["network-programming", "asynchronous", "web-programming::http-server"]
 
