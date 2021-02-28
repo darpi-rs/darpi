@@ -1,0 +1,11 @@
+---
+
+concurrency: 15
+base: 'http://localhost:3000'
+iterations: 10000
+rampup: 2
+
+plan:
+  - name: Hello world
+    request:
+      url: /hello_world

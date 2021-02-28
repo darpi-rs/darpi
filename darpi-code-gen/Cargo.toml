@@ -1,0 +1,27 @@
+[package]
+name = "darpi-code-gen"
+version = "0.1.0"
+authors = ["Petar Dambovaliev <petar.atanasov.1987@gmail.com>"]
+description = "code generation for the web api framework darpi"
+keywords = ["darpi-code-gen", "proc_macro", "procmacro"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1"
+proc-macro2 = "1.0"
+syn = {version = "1.0", features = ["full"]}
+darpi-route = { version = "0.1.0" }
+logos = "0.11.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+
+[dev-dependencies]
+http = "0.2.1"
+hyper = "0.13.9"
+shaku = "0.5.0"
+tokio = {version = "0.2.11", features = ["full"]}

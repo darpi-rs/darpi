@@ -1,0 +1,50 @@
+[package]
+name = "darpi"
+version = "0.1.2"
+authors = ["Petar Dambovaliev <petar.atanasov.1987@gmail.com>"]
+edition = "2018"
+description = "A web framework with type safety and speed in mind"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/petar-dambovaliev/darpi.git"
+keywords = ["darpi", "http", "web", "framework", "api"]
+categories = ["network-programming", "asynchronous", "web-programming::http-server"]
+
+[workspace]
+members = [
+    "darpi-code-gen",
+    "darpi-web",
+    "darpi-route",
+    "darpi-middleware",
+    "darpi-headers",
+    "darpi-graphql"
+]
+
+[profile.release]
+panic = "unwind"
+
+[dependencies]
+hyper = "0.13.9"
+futures = "0.3.8"
+shaku = {version = "0.5.0", features = ["thread_safe"]}
+http = "0.2.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.60"
+darpi-web = { path = "./darpi-web" }
+darpi-code-gen = { path = "./darpi-code-gen" }
+darpi-route = {version = "0.1.0" }
+async-trait = "0.1.42"
+chrono = "0.4"
+rayon = "1.5.0"
+log = "0.4.13"
+tokio = {version = "0.2.11", features = ["full"]}
+
+[dev-dependencies]
+jsonwebtoken = "=7.2"
+futures-util = "0.3.8"
+derive_more = "0.99.11"
+darpi-middleware = { path = "./darpi-middleware" }
+darpi-headers = { path = "./darpi-headers" }
+darpi-graphql = { path = "./darpi-graphql" }
+env_logger = "0.8.2"
+async-graphql = "2.5.4"
+slab = "0.4.2"
