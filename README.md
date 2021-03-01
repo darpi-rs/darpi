@@ -8,7 +8,7 @@ The framework also uses [shaku](https://github.com/Mcat12/shaku) for `compile ti
 ### The framework is in early development and will only be updated on github, until it's stable.
 All feedback is appreciated.
 
-###Resources
+### Resources
 
 [the darpi book](https://darpi-book.herokuapp.com/)
 
