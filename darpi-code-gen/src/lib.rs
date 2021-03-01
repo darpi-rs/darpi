@@ -12,8 +12,8 @@ use proc_macro2::Ident;
 use quote::{format_ident, quote, ToTokens};
 use syn::{parse, parse_macro_input, Error, ExprLit, ItemStruct, Pat, PatType, Type};
 
-#[proc_macro_attribute]
-pub fn from_path(_: TokenStream, input: TokenStream) -> TokenStream {
+#[proc_macro_derive(Path)]
+pub fn from_path(input: TokenStream) -> TokenStream {
     request::make_path_type(input)
 }
 

@@ -320,15 +320,7 @@ fn make_query(
 
 fn make_path_args(arg_name: &Ident, last: &PathSegment) -> proc_macro2::TokenStream {
     quote! {
-        let json_args = match darpi::serde_json::to_string(&args.route_args) {
-            Ok(k) => k,
-            Err(e) => {
-                return Ok(darpi::request::assert_respond_err::<#last, darpi::request::PathError>(
-                    darpi::request::PathError::Deserialize(e.to_string()),
-                ))
-            }
-        };
-        let #arg_name: #last = match darpi::serde_json::from_str(&json_args) {
+        let #arg_name = match #last::try_from(args.route_args) {
             Ok(k) => k,
             Err(e) => {
                 return Ok(darpi::request::assert_respond_err::<#last, darpi::request::PathError>(

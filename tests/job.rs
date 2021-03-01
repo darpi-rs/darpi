@@ -1,13 +1,13 @@
 use darpi::job::{CpuJob, FutureJob, IOBlockingJob};
 use darpi::{
-    app, from_path, handler, job_factory, logger::DefaultFormat, middleware, Body, Json, Method,
-    Query, RequestParts, Response,
+    app, handler, job_factory, logger::DefaultFormat, middleware, Body, Json, Method, Path, Query,
+    RequestParts, Response,
 };
 use darpi_middleware::{log_request, log_response};
 use env_logger;
 use serde::{Deserialize, Serialize};
 use shaku::module;
-use std::convert::Infallible;
+use std::convert::{Infallible, TryFrom};
 
 fn make_container() -> Container {
     let module = Container::builder().build();
@@ -21,8 +21,7 @@ module! {
     }
 }
 
-#[from_path]
-#[derive(Deserialize, Serialize, Debug, Query)]
+#[derive(Deserialize, Serialize, Debug, Query, Path)]
 pub struct Name {
     name: String,
 }

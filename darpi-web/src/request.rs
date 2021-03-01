@@ -106,10 +106,12 @@ impl<T> FromQuery<T, QueryPayloadError> for T {
     }
 }
 
-#[derive(Debug, Display, From)]
+#[derive(Debug, Display)]
 pub enum PathError {
     #[display(fmt = "Path deserialize error: {}", _0)]
     Deserialize(String),
+    #[display(fmt = "Missing field error: {}", _0)]
+    Missing(String),
 }
 
 impl ResponderError for PathError {}
