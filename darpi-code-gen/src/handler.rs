@@ -385,7 +385,7 @@ fn make_handler_args(
         .into());
     }
 
-    let attr = tp.attrs.first().expect("no handler attr");
+    let attr = tp.attrs.first().expect("can't happen");
 
     if let Type::Reference(tp) = *ttype.clone() {
         if let Type::Path(_) = *tp.elem.clone() {
@@ -527,17 +527,10 @@ fn make_handler_args(
             }
         }
     }
-    let attr_ident = attr.path.get_ident().unwrap();
-    Err(Error::new_spanned(
-        attr_ident,
-        format!(
-            "unsupported attribute #[{}] type {}",
-            attr_ident,
-            ttype.to_token_stream().to_string()
-        ),
-    )
-    .to_compile_error()
-    .into())
+
+    Err(Error::new_spanned(attr, "unsupported attribute")
+        .to_compile_error()
+        .into())
 }
 
 #[derive(Default)]
