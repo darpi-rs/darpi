@@ -55,6 +55,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
     let mut allowed_query = true;
     let mut allowed_path = true;
     let mut allowed_body = true;
+    let mut last_args = vec![];
+
     for arg in func.sig.inputs.iter_mut() {
         if let FnArg::Typed(tp) = arg {
             let h_args = match make_handler_args(
@@ -67,8 +69,11 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                 Ok(k) => k,
                 Err(e) => return e,
             };
-            let (arg_name, method_resolve) = match h_args {
-                HandlerArgs::JobChan(i, ts) => (i, ts),
+            match h_args {
+                HandlerArgs::JobChan(i, ts) => {
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
+                }
                 HandlerArgs::Query(i, ts) => {
                     if !allowed_query {
                         return Error::new_spanned(arg, "One 1 query type is allowed")
@@ -76,7 +81,12 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                             .into();
                     }
                     allowed_query = false;
-                    (i, ts)
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
+                }
+                HandlerArgs::Parts(i, ts) => {
+                    last_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
                 HandlerArgs::Body(i, ts) => {
                     if !allowed_body {
@@ -85,7 +95,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                             .into();
                     }
                     allowed_body = false;
-                    (i, ts)
+                    last_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
                 HandlerArgs::Path(i, ts) => {
                     if !allowed_path {
@@ -94,7 +105,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                             .into();
                     }
                     allowed_path = false;
-                    (i, ts)
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
                 HandlerArgs::Module(i, ts) => {
                     if !dummy_t.is_empty() {
@@ -105,7 +117,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                         .to_compile_error()
                         .into();
                     }
-                    (i, ts)
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
                 HandlerArgs::Middleware(i, ts, index, ttype) => {
                     if let Some(s) = max_middleware_index {
@@ -116,16 +129,18 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                         max_middleware_index = Some(index)
                     }
                     map.insert(index, ttype);
-                    (i, ts)
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
             };
 
-            make_args.push(method_resolve);
-            give_args.push(quote! {#arg_name});
             i += 1;
             tp.attrs = Default::default();
         }
     }
+
+    make_args.push(quote! {let (parts, body) = args.request.into_parts();});
+    make_args.append(&mut last_args);
 
     middleware_call.req.sort_by(|a, b| a.0.cmp(&b.0));
     middleware_call.res.sort_by(|a, b| a.0.cmp(&b.0));
@@ -159,7 +174,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
 
         #[darpi::async_trait]
         impl<'a #dummy_t> darpi::Handler<'a, #module_type> for #func_name #dummy_where {
-            async fn call(&self, mut args: darpi::Args<'a, #module_type>) -> Result<darpi::Response<darpi::Body>, std::convert::Infallible> {
+            async fn call(self, mut args: darpi::Args<'a, #module_type>) -> Result<darpi::Response<darpi::Body>, std::convert::Infallible> {
                use darpi::response::Responder;
                #[allow(unused_imports)]
                use shaku::HasComponent;
@@ -172,6 +187,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                #[allow(unused_imports)]
                use darpi::ResponseMiddleware;
                use darpi::{RequestJobFactory, ResponseJobFactory};
+               #[allow(unused_imports)]
+               use std::convert::TryFrom;
 
                 #(#middleware_req )*
                 #(#jobs_req )*
@@ -311,7 +328,7 @@ fn make_query(
 ) -> proc_macro2::TokenStream {
     let inner = full.path.segments.last().cloned().expect("No query");
     quote! {
-        let #arg_name: #full = match #format::from_query(args.request_parts.uri.query()) {
+        let #arg_name: #full = match #format::from_query(args.request.uri().query()) {
             Ok(q) => q,
             Err(e) => return Ok(darpi::request::assert_respond_err::<#inner, darpi::request::QueryPayloadError>(e))
         };
@@ -344,12 +361,12 @@ fn make_json_body(
     let inner = &path.path.segments.last().expect("no body").arguments;
 
     let output = quote! {
-        match #format::#inner::assert_content_type(args.request_parts.headers.get("content-type"), #module_ident).await {
+        match #format::#inner::assert_content_type(parts.headers.get("content-type"), #module_ident).await {
             Ok(()) => {}
             Err(e) => return Ok(e.respond_err()),
         }
-        //todo pass container
-        let #arg_name: #path = match #format::extract(&args.request_parts.headers, args.body, #module_ident).await {
+
+        let #arg_name: #path = match #format::extract(&parts.headers, body, #module_ident).await {
             Ok(q) => q,
             Err(e) => return Ok(e.respond_err())
         };
@@ -364,6 +381,7 @@ enum HandlerArgs {
     Module(Ident, proc_macro2::TokenStream),
     Middleware(Ident, proc_macro2::TokenStream, u64, Type),
     JobChan(Ident, proc_macro2::TokenStream),
+    Parts(Ident, proc_macro2::TokenStream),
 }
 
 fn make_handler_args(
@@ -402,8 +420,8 @@ fn make_handler_args(
                 let attr_ident = &attr_ident[0];
 
                 if attr_ident == "request_parts" {
-                    let res = quote! {let #arg_name = args.request_parts;};
-                    return Ok(HandlerArgs::JobChan(arg_name, res));
+                    let res = quote! {let #arg_name = &parts;};
+                    return Ok(HandlerArgs::Parts(arg_name, res));
                 }
             }
         }
@@ -427,8 +445,8 @@ fn make_handler_args(
         if attr_ident.len() == 1 {
             let attr_ident = &attr_ident[0];
 
-            if attr_ident == "request_parts" {
-                let res = quote! {let #arg_name = args.request_parts;};
+            if attr_ident == "request" {
+                let res = quote! {let #arg_name = args.request;};
                 return Ok(HandlerArgs::JobChan(arg_name, res));
             }
 
@@ -565,7 +583,7 @@ fn make_call_middleware(middleware: Option<ReqResArray>) -> MiddlewareCall {
                 };
 
                 middleware_req.push((sorter, quote! {
-                    let #m_arg_ident = match #name::call(&mut args.request_parts, args.container.clone(), &mut args.body, #m_args).await {
+                    let #m_arg_ident = match #name::call(&mut args.request, args.container.clone(), #m_args).await {
                         Ok(k) => k,
                         Err(e) => return Ok(e.respond_err()),
                     };
@@ -648,28 +666,28 @@ fn make_job_call(jobs: Option<ReqResArray>) -> JobCall {
                 };
 
                 jobs_req.push(quote! {
-                        darpi::job::assert_request_job(#name);
-                        match #name::call(&args.request_parts, args.container.clone(), &args.body, #m_args).await.into() {
-                            darpi::job::Job::CpuBound(function) => {
-                                let res = darpi::spawn(function).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue CpuBound job err: {}", e);
-                                }
+                    darpi::job::assert_request_job(#name);
+                    match #name::call(&r, args.container.clone(), #m_args).await.into() {
+                        darpi::job::Job::CpuBound(function) => {
+                            let res = darpi::spawn(function).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue CpuBound job err: {}", e);
                             }
-                            darpi::job::Job::IOBlocking(function) => {
-                                let res = darpi::spawn(function).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue IOBlocking job err: {}", e);
-                                }
+                        }
+                        darpi::job::Job::IOBlocking(function) => {
+                            let res = darpi::spawn(function).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue IOBlocking job err: {}", e);
                             }
-                            darpi::job::Job::Future(fut) => {
-                                let res = darpi::spawn(fut).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue Future job err: {}", e);
-                                }
+                        }
+                        darpi::job::Job::Future(fut) => {
+                            let res = darpi::spawn(fut).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue Future job err: {}", e);
                             }
-                        };
-                    });
+                        }
+                    };
+                });
             });
         });
 
@@ -699,28 +717,28 @@ fn make_job_call(jobs: Option<ReqResArray>) -> JobCall {
                 };
 
                 jobs_res.push(quote! {
-                        darpi::job::assert_response_job(#name);
-                        match #name::call(&rb, args.container.clone(), #m_args).await.into() {
-                            darpi::job::Job::CpuBound(function) => {
-                                let res = darpi::spawn(function).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue CpuBound job err: {}", e);
-                                }
+                    darpi::job::assert_response_job(#name);
+                    match #name::call(&rb, args.container.clone(), #m_args).await.into() {
+                        darpi::job::Job::CpuBound(function) => {
+                            let res = darpi::spawn(function).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue CpuBound job err: {}", e);
                             }
-                            darpi::job::Job::IOBlocking(function) => {
-                                let res = darpi::spawn(function).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue IOBlocking job err: {}", e);
-                                }
+                        }
+                        darpi::job::Job::IOBlocking(function) => {
+                            let res = darpi::spawn(function).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue IOBlocking job err: {}", e);
                             }
-                            darpi::job::Job::Future(fut) => {
-                                let res = darpi::spawn(fut).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue Future job err: {}", e);
-                                }
+                        }
+                        darpi::job::Job::Future(fut) => {
+                            let res = darpi::spawn(fut).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue Future job err: {}", e);
                             }
-                        };
-                    });
+                        }
+                    };
+                });
             });
         });
     });

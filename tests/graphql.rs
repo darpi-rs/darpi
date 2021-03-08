@@ -436,8 +436,7 @@ pub(crate) async fn home() -> String {
     format!("home")
 }
 
-#[from_path]
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Path)]
 pub struct Name {
     name: String,
 }

@@ -1,7 +1,8 @@
+use darpi::futures::{FutureExt, TryFutureExt};
 use darpi::job::{CpuJob, FutureJob, IOBlockingJob};
 use darpi::{
     app, handler, job_factory, logger::DefaultFormat, middleware, Body, Json, Method, Path, Query,
-    RequestParts, Response,
+    Request, RequestParts, Response,
 };
 use darpi_middleware::{log_request, log_response};
 use env_logger;
@@ -69,13 +70,15 @@ async fn first_sync_io_job() -> IOBlockingJob {
     job.into()
 }
 
+// todo make sure Request is passed by value
+// show a nice error
 #[handler({
     jobs: {
         response: [first_sync_job, first_sync_job1]
     }
 })]
-async fn hello_world(#[request_parts] rp: &RequestParts) -> &'static str {
-    if rp.headers.get("destroy-cpu-header").is_some() {
+async fn hello_world(#[request_parts] r: &RequestParts) -> &'static str {
+    if r.headers.get("destroy-cpu-header").is_some() {
         let job = || {
             let mut r = 0;
             for _ in 0..10000000 {
@@ -108,8 +111,7 @@ async fn hello_world1() -> Result<String, String> {
 
 #[middleware(Request)]
 pub(crate) async fn roundtrip(
-    #[request_parts] _rp: &RequestParts,
-    #[body] _b: &Body,
+    #[request] _rp: &Request<Body>,
     #[handler] msg: impl AsRef<str> + Send + Sync + 'static,
 ) -> Result<String, Infallible> {
     let res = format!("{} from roundtrip middleware", msg.as_ref());
@@ -146,6 +148,8 @@ async fn do_something123(
 }
 
 //todo leak the container so there isn't the overhead of Arc
+//todo add configuration for the 3 different runtimes so the
+// runtime serving requests doesn't get stomped
 
 //RUST_LOG=darpi=info cargo test --test job -- --nocapture
 //#[tokio::test]

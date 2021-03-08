@@ -76,7 +76,6 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
             middleware.request.map(|rm| {
                rm.iter().for_each(|e| {
                     let m_arg_ident = format_ident!("m_arg_{}", i);
-                    let mut sorter = 0_u16;
 
                     let (name, m_args) = match e {
                         Func::Call(expr_call) => {
@@ -84,7 +83,6 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                                 if let SynExpr::Call(expr_call) = arg {
                                     if expr_call.func.to_token_stream().to_string() == "request" {
                                         let index: u16 = expr_call.args.first().unwrap().to_token_stream().to_string().parse().unwrap();
-                                        sorter += index;
                                         let i_ident = format_ident!("m_arg_{}", index);
                                         return quote!{#i_ident.clone()};
                                     }
@@ -108,12 +106,12 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                     };
 
 
-                    middleware_req.push((sorter, quote! {
-                    let #m_arg_ident = match #name::call(&mut parts, inner_module.clone(), &mut body, #m_args).await {
+                    middleware_req.push(quote! {
+                    let #m_arg_ident = match #name::call(&mut r, inner_module.clone(), #m_args).await {
                         Ok(k) => k,
                         Err(e) => return Ok(e.respond_err()),
                     };
-                }));
+                });
                     i += 1;
                 });
             });
@@ -121,20 +119,20 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
             middleware.response.map(|ref mut rm| {
                 rm.iter_mut().for_each(|e| {
                     let r_m_arg_ident = format_ident!("res_m_arg_{}", i);
-                    let mut sorter = 0_u16;
 
                     let (name, m_args) = match e {
                         Func::Call(expr_call) => {
                             let m_args: Vec<proc_macro2::TokenStream> = expr_call.args.iter_mut().map(|arg| {
                                 if let SynExpr::Call(expr_call) = arg {
                                     if expr_call.func.to_token_stream().to_string() == "request" {
+                                        //todo remove unwrap and handle errors
                                         let index: u16 = expr_call.args.first().unwrap().to_token_stream().to_string().parse().unwrap();
                                         let i_ident = format_ident!("m_arg_{}", index);
                                         return quote!{#i_ident.clone()};
                                     }
                                     if expr_call.func.to_token_stream().to_string() == "response" {
+                                        //todo use index to get the correct result
                                         let index: u16 = expr_call.args.first().unwrap().to_token_stream().to_string().parse().unwrap();
-                                        sorter += index;
                                         return quote!{#r_m_arg_ident.clone()};
                                     }
                                 }
@@ -147,8 +145,8 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                                                 return quote!{#i_ident.clone()};
                                             }
                                             if expr_call.func.to_token_stream().to_string() == "response" {
+                                                //todo use index to get the correct result
                                                 let index: u16 = expr_call.args.first().unwrap().to_token_stream().to_string().parse().unwrap();
-                                                sorter += index;
                                                 return quote!{#r_m_arg_ident.clone()};
                                             }
                                         }
@@ -175,12 +173,12 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                         }
                     };
 
-                    middleware_res.push((std::u16::MAX - i - sorter, quote! {
+                    middleware_res.push(quote! {
                     let #r_m_arg_ident = match #name::call(&mut rb, inner_module.clone(), #m_args).await {
                         Ok(k) => k,
                         Err(e) => return Ok(e.respond_err()),
                     };
-                }));
+                });
                     i += 1;
                 });
             });
@@ -222,7 +220,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                 };
 
                 jobs_req.push(quote! {
-                    match #name::call(&parts, inner_module.clone(), &body, #m_args).await.into() {
+                    match #name::call(&r, inner_module.clone(), #m_args).await.into() {
                         darpi::job::Job::CpuBound(function) => {
                                 let res = darpi::spawn(function).await;
                                 if let Err(e) = res {
@@ -299,14 +297,6 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         (jobs_req, jobs_res)
     });
 
-    middleware_req.sort_by(|a, b| a.0.cmp(&b.0));
-    middleware_res.sort_by(|a, b| a.0.cmp(&b.0));
-
-    let middleware_req: Vec<proc_macro2::TokenStream> =
-        middleware_req.into_iter().map(|e| e.1).collect();
-    let middleware_res: Vec<proc_macro2::TokenStream> =
-        middleware_res.into_iter().map(|e| e.1).collect();
-
     let app = quote! {
         #(#body_assert_def )*
         #(#route_arg_assert_def )*
@@ -360,7 +350,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                     let inner_handlers = std::sync::Arc::clone(&handlers);
 
                     async move {
-                        Ok::<_, std::convert::Infallible>(darpi::service::service_fn(move |r: darpi::Request<darpi::Body>| {
+                        Ok::<_, std::convert::Infallible>(darpi::service::service_fn(move |mut r: darpi::Request<darpi::Body>| {
                             use darpi::futures::FutureExt;
                             use darpi::response::ResponderError;
                             #[allow(unused_imports)]
@@ -375,8 +365,6 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                             async move {
                                 let route = r.uri().path().to_string();
                                 let method = r.method().clone();
-
-                                let (mut parts, mut body) = r.into_parts();
 
                                 #(#middleware_req )*
                                 #(#jobs_req )*
@@ -527,12 +515,11 @@ fn make_handlers(handlers: Punctuated<Handler, token::Comma>) -> Result<HandlerT
         routes_match.push(quote! {
             RoutePossibilities::#variant_name => {
                 let args = darpi::Args{
-                    request_parts: &mut parts,
+                    request: r,
                     container: inner_module.clone(),
-                    body: body,
                     route_args: handler.1.1,
                 };
-                Handler::call(&#variant_value, args).await
+                Handler::call(#variant_value, args).await
             }
         });
     }

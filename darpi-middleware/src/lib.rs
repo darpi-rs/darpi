@@ -1,6 +1,6 @@
 use darpi::{
     logger::ReqFormatter, logger::RespFormatter, middleware, request::PayloadError, Body, HttpBody,
-    RequestParts, Response,
+    Request, Response,
 };
 
 pub mod auth;
@@ -20,8 +20,11 @@ use std::time::Instant;
 /// }
 /// ```
 #[middleware(Request)]
-pub async fn body_size_limit(#[body] b: &Body, #[handler] size: u64) -> Result<(), PayloadError> {
-    if let Some(limit) = b.size_hint().upper() {
+pub async fn body_size_limit(
+    #[request] r: &Request<Body>,
+    #[handler] size: u64,
+) -> Result<(), PayloadError> {
+    if let Some(limit) = r.size_hint().upper() {
         if size < limit {
             return Err(PayloadError::Size(size, limit));
         }
@@ -31,11 +34,10 @@ pub async fn body_size_limit(#[body] b: &Body, #[handler] size: u64) -> Result<(
 
 #[middleware(Request)]
 pub async fn log_request(
-    #[request_parts] rp: &RequestParts,
-    #[body] b: &Body,
+    #[request] r: &Request<Body>,
     #[handler] formatter: impl ReqFormatter,
 ) -> Result<Instant, Infallible> {
-    let formatted = formatter.format_req(b, rp);
+    let formatted = formatter.format_req(r);
     log::info!("{}", formatted);
     Ok(Instant::now())
 }

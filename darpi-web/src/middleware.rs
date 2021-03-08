@@ -1,6 +1,5 @@
-use crate::{response::ResponderError, Body, Response};
+use crate::{response::ResponderError, Body, Request, Response};
 use async_trait::async_trait;
-use http::request::Parts as RequestParts;
 use std::sync::Arc;
 
 #[async_trait]
@@ -13,9 +12,8 @@ where
     type Type;
 
     async fn call(
-        p: &mut RequestParts,
+        req: &mut Request<Body>,
         module: Arc<M>,
-        b: &mut Body,
         ha: Self::HandlerArgs,
     ) -> Result<Self::Type, Self::Error>;
 }

@@ -9,10 +9,10 @@ impl ReqFormatter for DefaultFormat {}
 impl RespFormatter for DefaultFormat {}
 
 pub trait ReqFormatter: Sync + Send + 'static {
-    fn format_req(&self, b: &Body, rp: &RequestParts) -> String {
+    fn format_req(&self, r: &Request<Body>) -> String {
         let mut content = vec!["[darpi::request]".to_string()];
 
-        if let Some(forwarded) = rp.headers.get(FORWARDED) {
+        if let Some(forwarded) = r.headers().get(FORWARDED) {
             let forwarded = format!(
                 "remote_ip: [{}]",
                 forwarded.to_str().map_err(|_| "").expect("never to happen")
@@ -24,12 +24,12 @@ pub trait ReqFormatter: Sync + Send + 'static {
         let now = format!("when: [{}]", now.to_rfc3339());
         content.push(now);
 
-        let uri = format!("uri: [{:#?}]", rp.uri);
+        let uri = format!("uri: [{:#?}]", r.uri());
         content.push(uri);
 
-        let body_size = match b.size_hint().exact() {
+        let body_size = match r.size_hint().exact() {
             Some(s) => s,
-            None => b.size_hint().lower(),
+            None => r.size_hint().lower(),
         };
 
         let size = format!("body_size: [{}] bytes", body_size);

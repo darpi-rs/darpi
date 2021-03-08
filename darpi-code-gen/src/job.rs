@@ -121,9 +121,8 @@ pub(crate) fn make_job(args: TokenStream, input: TokenStream) -> TokenStream {
                     type Return =  #return_type;
 
                     async fn call(
-                        p: &darpi::RequestParts,
+                        r: &darpi::Request<darpi::Body>,
                         module: std::sync::Arc<C>,
-                        b: &darpi::Body,
                         ha: Self::HandlerArgs,
                     ) -> Self::Return {
                         #(#make )*

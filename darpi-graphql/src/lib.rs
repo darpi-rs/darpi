@@ -1,3 +1,4 @@
+use async_channel::{bounded, Receiver, Sender};
 use async_graphql::http::MultipartOptions;
 use async_graphql::{ParseRequestError, Result};
 use async_trait::async_trait;
@@ -11,7 +12,6 @@ use serde::{de::DeserializeOwned, Deserialize, Deserializer};
 use serde_json;
 use shaku::{Component, HasComponent, Interface};
 use std::sync::Arc;
-use tokio::sync::mpsc::{Receiver, Sender};
 
 #[derive(Debug, Deserialize, Query)]
 pub struct BatchRequest(pub async_graphql::BatchRequest);
@@ -124,7 +124,7 @@ where
 {
     async fn extract(
         headers: &HeaderMap,
-        mut b: darpi::Body,
+        mut body: darpi::Body,
         container: Arc<C>,
     ) -> Result<GraphQLBody<BatchRequest>, GraphQLError> {
         let content_type = headers
@@ -135,10 +135,10 @@ where
         let (mut tx, rx): (
             Sender<std::result::Result<Bytes, _>>,
             Receiver<std::result::Result<Bytes, _>>,
-        ) = tokio::sync::mpsc::channel(16);
+        ) = bounded(16);
 
         tokio::runtime::Handle::current().spawn(async move {
-            while let Some(item) = b.next().await {
+            while let Some(item) = body.next().await {
                 if tx.send(item).await.is_err() {
                     return;
                 }
@@ -177,10 +177,10 @@ where
 {
     async fn extract(
         headers: &HeaderMap,
-        b: darpi::Body,
+        body: darpi::Body,
         container: Arc<C>,
     ) -> Result<GraphQLBody<Request>, GraphQLError> {
-        let res: GraphQLBody<BatchRequest> = GraphQLBody::extract(headers, b, container).await?;
+        let res: GraphQLBody<BatchRequest> = GraphQLBody::extract(headers, body, container).await?;
 
         Ok(res
             .0

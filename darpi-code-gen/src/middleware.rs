@@ -152,9 +152,8 @@ pub(crate) fn make_middleware(args: TokenStream, input: TokenStream) -> TokenStr
                     type Type = #k;
 
                     async fn call(
-                        p: &mut darpi::RequestParts,
+                        r: &mut darpi::Request<Body>,
                         module: std::sync::Arc<M>,
-                        b: &mut darpi::Body,
                         ha: Self::HandlerArgs,
                     ) -> Result<Self::Type, Self::Error> {
                         #(#make )*
