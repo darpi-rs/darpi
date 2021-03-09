@@ -48,3 +48,4 @@ darpi-graphql = { path = "./darpi-graphql" }
 env_logger = "0.8.2"
 async-graphql = "2.5.4"
 slab = "0.4.2"
+tokio-tungstenite = "0.14.0"

@@ -41,7 +41,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
         Some(args)
     };
     let ArgsCall {
-        mut middleware_call,
+        middleware_call,
         job_call,
         container,
     } = make_args_call(args);
@@ -55,6 +55,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
     let mut allowed_query = true;
     let mut allowed_path = true;
     let mut allowed_body = true;
+    let mut is_ws = false;
     let mut last_args = vec![];
 
     for arg in func.sig.inputs.iter_mut() {
@@ -70,6 +71,11 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                 Err(e) => return e,
             };
             match h_args {
+                HandlerArgs::WS(i, ts) => {
+                    is_ws = true;
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
+                }
                 HandlerArgs::JobChan(i, ts) => {
                     make_args.push(ts);
                     give_args.push(quote! {#i});
@@ -139,16 +145,13 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
         }
     }
 
-    make_args.push(quote! {let (parts, body) = args.request.into_parts();});
+    if !is_ws {
+        make_args.push(quote! {let (parts, body) = args.request.into_parts();});
+    }
     make_args.append(&mut last_args);
 
-    middleware_call.req.sort_by(|a, b| a.0.cmp(&b.0));
-    middleware_call.res.sort_by(|a, b| a.0.cmp(&b.0));
-
-    let middleware_req: Vec<proc_macro2::TokenStream> =
-        middleware_call.req.into_iter().map(|e| e.1).collect();
-    let middleware_res: Vec<proc_macro2::TokenStream> =
-        middleware_call.res.into_iter().map(|e| e.1).collect();
+    let middleware_req = middleware_call.req;
+    let middleware_res = middleware_call.res;
 
     let func_copy = func.clone();
 
@@ -230,11 +233,7 @@ fn make_args_call(conf: Option<Config>) -> ArgsCall {
     }
 }
 
-fn get_req_middleware_arg(
-    e: &Func,
-    sorter: &mut u16,
-    m_len: usize,
-) -> Vec<proc_macro2::TokenStream> {
+fn get_req_middleware_arg(e: &Func, m_len: usize) -> Vec<proc_macro2::TokenStream> {
     let m_args: Vec<proc_macro2::TokenStream> = e
         .get_args()
         .iter()
@@ -255,7 +254,6 @@ fn get_req_middleware_arg(
                         panic!("middleware index out of bounds");
                     }
 
-                    *sorter += index;
                     let i_ident = format_ident!("m_arg_{}", index);
                     return quote! {#i_ident.clone()};
                 } else if arg_name == "response" {
@@ -382,6 +380,7 @@ enum HandlerArgs {
     Middleware(Ident, proc_macro2::TokenStream, u64, Type),
     JobChan(Ident, proc_macro2::TokenStream),
     Parts(Ident, proc_macro2::TokenStream),
+    WS(Ident, proc_macro2::TokenStream),
 }
 
 fn make_handler_args(
@@ -474,6 +473,16 @@ fn make_handler_args(
                 };
                 return Ok(HandlerArgs::Module(arg_name, method_resolve));
             }
+
+            if attr_ident == "ws" {
+                let method_resolve = quote! {
+                    let #arg_name: #ttype = match darpi::hyper::upgrade::on(args.request).await {
+                        Ok(upgraded) => upgraded,
+                        Err(e) => return Ok(e.respond_err()),
+                    };
+                };
+                return Ok(HandlerArgs::WS(arg_name, method_resolve));
+            }
         }
 
         if attr_ident.len() == 2 {
@@ -553,8 +562,8 @@ fn make_handler_args(
 
 #[derive(Default)]
 struct MiddlewareCall {
-    req: Vec<(u16, TokenStream2)>,
-    res: Vec<(u16, TokenStream2)>,
+    req: Vec<TokenStream2>,
+    res: Vec<TokenStream2>,
     req_len: usize,
     res_len: usize,
 }
@@ -570,9 +579,8 @@ fn make_call_middleware(middleware: Option<ReqResArray>) -> MiddlewareCall {
             for e in &rm {
                 let name = e.get_name();
                 let m_arg_ident = format_ident!("m_arg_{}", i);
-                let mut sorter = 0_u16;
                 let m_args: Vec<proc_macro2::TokenStream> =
-                    get_req_middleware_arg(e, &mut sorter, rm.len());
+                    get_req_middleware_arg(e,rm.len());
 
                 let m_args = if m_args.len() > 1 {
                     quote! {(#(#m_args ,)*)}
@@ -582,12 +590,12 @@ fn make_call_middleware(middleware: Option<ReqResArray>) -> MiddlewareCall {
                     quote! {()}
                 };
 
-                middleware_req.push((sorter, quote! {
+                middleware_req.push(quote! {
                     let #m_arg_ident = match #name::call(&mut args.request, args.container.clone(), #m_args).await {
                         Ok(k) => k,
                         Err(e) => return Ok(e.respond_err()),
                     };
-                }));
+                });
                 i += 1;
             }
 
@@ -610,12 +618,12 @@ fn make_call_middleware(middleware: Option<ReqResArray>) -> MiddlewareCall {
                     quote! {()}
                 };
 
-                middleware_res.push((std::u16::MAX - i - sorter, quote! {
+                middleware_res.push(quote! {
                     let #r_m_arg_ident = match #name::call(&mut rb, args.container.clone(), #m_args).await {
                         Ok(k) => k,
                         Err(e) => return Ok(e.respond_err()),
                     };
-                }));
+                });
                 i += 1;
             }
             rm.len()

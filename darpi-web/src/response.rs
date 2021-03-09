@@ -1,4 +1,4 @@
-use hyper::{Body, Response, StatusCode};
+use hyper::{Body, Error, Response, StatusCode};
 
 use bytes::BytesMut;
 use http::header;
@@ -11,6 +11,17 @@ pub trait Responder {
         StatusCode::OK
     }
     fn respond(self) -> Response<Body>;
+}
+
+pub struct SwitchingProtocol;
+
+impl Responder for SwitchingProtocol {
+    fn respond(self) -> Response<Body> {
+        Response::builder()
+            .status(StatusCode::SWITCHING_PROTOCOLS)
+            .body(Body::empty())
+            .unwrap()
+    }
 }
 
 impl Responder for &'static str {
@@ -116,6 +127,8 @@ impl<'a> Write for ByteWriter<'a> {
 impl ResponderError for Infallible {}
 impl ResponderError for String {}
 impl ResponderError for &str {}
+impl ResponderError for Error {}
+impl ResponderError for dyn std::error::Error {}
 
 pub trait ErrResponder<E, B>
 where
