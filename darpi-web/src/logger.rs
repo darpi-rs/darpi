@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 use http::header::FORWARDED;
-use http::request::Parts as RequestParts;
 pub use hyper::{body::HttpBody, Body, Request, Response, StatusCode};
 use std::time::Instant;
 

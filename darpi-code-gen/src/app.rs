@@ -67,7 +67,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         )
     });
 
-    let (mut middleware_req, mut middleware_res) =
+    let (middleware_req, middleware_res) =
         config.middleware.map_or(Default::default(), |middleware| {
             let mut middleware_req = vec![];
             let mut middleware_res = vec![];
@@ -116,10 +116,11 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                 });
             });
 
+            let mut i = 0u16;
+
             middleware.response.map(|ref mut rm| {
                 rm.iter_mut().for_each(|e| {
                     let r_m_arg_ident = format_ident!("res_m_arg_{}", i);
-
                     let (name, m_args) = match e {
                         Func::Call(expr_call) => {
                             let m_args: Vec<proc_macro2::TokenStream> = expr_call.args.iter_mut().map(|arg| {
@@ -133,6 +134,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                                     if expr_call.func.to_token_stream().to_string() == "response" {
                                         //todo use index to get the correct result
                                         let index: u16 = expr_call.args.first().unwrap().to_token_stream().to_string().parse().unwrap();
+                                        let r_m_arg_ident = format_ident!("res_m_arg_{}", index);
                                         return quote!{#r_m_arg_ident.clone()};
                                     }
                                 }
@@ -147,6 +149,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                                             if expr_call.func.to_token_stream().to_string() == "response" {
                                                 //todo use index to get the correct result
                                                 let index: u16 = expr_call.args.first().unwrap().to_token_stream().to_string().parse().unwrap();
+                                                let r_m_arg_ident = format_ident!("res_m_arg_{}", index);
                                                 return quote!{#r_m_arg_ident.clone()};
                                             }
                                         }

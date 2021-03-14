@@ -56,9 +56,10 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
     let mut allowed_path = true;
     let mut allowed_body = true;
     let mut is_ws = false;
+    let mut consumed = None;
     let mut last_args = vec![];
 
-    for arg in func.sig.inputs.iter_mut() {
+    for arg in func.sig.inputs.iter() {
         if let FnArg::Typed(tp) = arg {
             let h_args = match make_handler_args(
                 tp,
@@ -72,6 +73,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
             };
             match h_args {
                 HandlerArgs::WS(i, ts) => {
+                    allowed_body = false;
+                    allowed_query = false;
                     is_ws = true;
                     make_args.push(ts);
                     give_args.push(quote! {#i});
@@ -86,15 +89,18 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                             .to_compile_error()
                             .into();
                     }
+                    consumed = Some(arg.clone());
                     allowed_query = false;
                     make_args.push(ts);
                     give_args.push(quote! {#i});
                 }
                 HandlerArgs::Parts(i, ts) => {
+                    consumed = Some(arg.clone());
                     last_args.push(ts);
                     give_args.push(quote! {#i});
                 }
                 HandlerArgs::Body(i, ts) => {
+                    consumed = Some(arg.clone());
                     if !allowed_body {
                         return Error::new_spanned(arg, "One 1 body type is allowed")
                             .to_compile_error()
@@ -141,6 +147,17 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
             };
 
             i += 1;
+        }
+    }
+
+    if is_ws && consumed.is_some() {
+        return Error::new_spanned(consumed.unwrap(), "Request is consumed by `ws`")
+            .to_compile_error()
+            .into();
+    }
+
+    for arg in func.sig.inputs.iter_mut() {
+        if let FnArg::Typed(tp) = arg {
             tp.attrs = Default::default();
         }
     }
@@ -444,6 +461,14 @@ fn make_handler_args(
         if attr_ident.len() == 1 {
             let attr_ident = &attr_ident[0];
 
+            if attr_ident == "request_parts" {
+                return Err(
+                    Error::new_spanned(attr, format!("Please add an `&` to your type"))
+                        .to_compile_error()
+                        .into(),
+                );
+            }
+
             if attr_ident == "request" {
                 let res = quote! {let #arg_name = args.request;};
                 return Ok(HandlerArgs::JobChan(arg_name, res));
@@ -484,6 +509,79 @@ fn make_handler_args(
                 return Ok(HandlerArgs::WS(arg_name, method_resolve));
             }
         }
+
+        if attr_ident.len() == 2 {
+            let left = &attr_ident[0];
+            let right = &attr_ident[1];
+
+            if left == "middleware" && right == "request" {
+                let index: ExprLit = match attr.parse_args() {
+                    Ok(el) => el,
+                    Err(_) => {
+                        return Err(Error::new(Span::call_site(), format!("missing index"))
+                            .to_compile_error()
+                            .into())
+                    }
+                };
+
+                let index = match index.lit {
+                    syn::Lit::Int(i) => {
+                        let value = match i.base10_parse::<u64>() {
+                            Ok(k) => k,
+                            Err(_) => {
+                                return Err(Error::new(
+                                    Span::call_site(),
+                                    format!("invalid middleware::request index"),
+                                )
+                                .to_compile_error()
+                                .into())
+                            }
+                        };
+                        value
+                    }
+                    _ => {
+                        return Err(Error::new(
+                            Span::call_site(),
+                            format!("invalid middleware::request index"),
+                        )
+                        .to_compile_error()
+                        .into())
+                    }
+                };
+
+                if index >= req_len as u64 {
+                    return Err(Error::new(
+                        Span::call_site(),
+                        format!("invalid middleware::request index {}", index),
+                    )
+                    .to_compile_error()
+                    .into());
+                }
+
+                let m_arg_ident = format_ident!("m_arg_{}", index);
+                let method_resolve = quote! {
+                    let #arg_name: #ttype = #m_arg_ident;
+                };
+                return Ok(HandlerArgs::Middleware(
+                    arg_name,
+                    method_resolve,
+                    index,
+                    *ttype.clone(),
+                ));
+            }
+
+            if left == "middleware" && right == "response" {
+                return Err(
+                    Error::new_spanned(left, "handlers args cannot refer to `middleware::response` return values because they are ran post handler")
+                        .to_compile_error()
+                        .into(),
+                );
+            }
+        }
+    }
+
+    if let Type::Tuple(_) = *ttype.clone() {
+        let attr_ident: Vec<Ident> = attr.path.segments.iter().map(|s| s.ident.clone()).collect();
 
         if attr_ident.len() == 2 {
             let left = &attr_ident[0];

@@ -13,12 +13,14 @@ pub trait Responder {
     fn respond(self) -> Response<Body>;
 }
 
-pub struct SwitchingProtocol;
+pub struct UpgradeWS;
 
-impl Responder for SwitchingProtocol {
+impl Responder for UpgradeWS {
     fn respond(self) -> Response<Body> {
         Response::builder()
             .status(StatusCode::SWITCHING_PROTOCOLS)
+            .header(header::UPGRADE, "websocket")
+            .header(header::CONNECTION, "upgrade")
             .body(Body::empty())
             .unwrap()
     }

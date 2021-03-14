@@ -6,9 +6,17 @@ use darpi::{
 pub mod auth;
 pub mod compression;
 
+use darpi::header::HeaderMap;
+use darpi::hyper::http::Extensions;
+use darpi::hyper::Uri;
 use log;
 use std::convert::Infallible;
 use std::time::Instant;
+
+#[middleware(Request)]
+pub async fn request_parts(#[request] r: &Request<Body>) -> Result<(HeaderMap, Uri), Infallible> {
+    Ok((r.headers().clone(), r.uri().clone()))
+}
 
 /// this middleware limits the request body size by a user passed argument
 /// the argument `size` indicates number of bytes
