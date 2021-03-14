@@ -23,7 +23,7 @@ members = [
 panic = "unwind"
 
 [dependencies]
-hyper = "0.13.9"
+hyper = {version = "0.14.4", features = ["server", "http1", "http2", "stream", "tcp"]}
 futures = "0.3.8"
 shaku = {version = "0.5.0", features = ["thread_safe"]}
 http = "0.2.1"
@@ -36,7 +36,7 @@ async-trait = "0.1.42"
 chrono = "0.4"
 rayon = "1.5.0"
 log = "0.4.13"
-tokio = {version = "0.2.11", features = ["full"]}
+tokio = {version = "1.2.0", features = ["full"]}
 
 [dev-dependencies]
 jsonwebtoken = "=7.2"
@@ -48,3 +48,4 @@ darpi-graphql = { path = "./darpi-graphql" }
 env_logger = "0.8.2"
 async-graphql = "2.5.4"
 slab = "0.4.2"
+tokio-tungstenite = "0.14.0"

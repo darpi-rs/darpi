@@ -105,7 +105,7 @@ fn make_handler_arg(
 
     if let Type::Reference(rt) = *ttype.clone() {
         if let Type::Path(_) = *rt.elem.clone() {
-            if attr_ident == "request_parts" {
+            if attr_ident == "request" {
                 if !is_request {
                     return Err(Error::new_spanned(
                         attr_ident,
@@ -114,21 +114,8 @@ fn make_handler_arg(
                     .to_compile_error()
                     .into());
                 }
-                let res = quote! {let #arg_name = p;};
+                let res = quote! {let #arg_name = r;};
                 return Ok(HandlerArg::Permanent(arg_name.to_token_stream(), res));
-            }
-            if attr_ident == "body" {
-                if !is_request {
-                    return Err(Error::new_spanned(
-                        attr_ident,
-                        format!("body only allowed for Request {}", name),
-                    )
-                    .to_compile_error()
-                    .into());
-                }
-                let res = quote! {let mut #arg_name = b;};
-                let tt = quote! {&mut #arg_name};
-                return Ok(HandlerArg::Permanent(tt, res));
             }
             if attr_ident == "response" {
                 let res = quote! {let mut #arg_name = r;};

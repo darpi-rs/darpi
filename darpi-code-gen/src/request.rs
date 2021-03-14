@@ -43,7 +43,7 @@ pub(crate) fn make_path_type(input: TokenStream) -> TokenStream {
         }
 
         let tokens = quote! {
-            impl<'a> TryFrom<std::collections::HashMap<&'a str, &'a str>> for #name {
+            impl<'a> std::convert::TryFrom<std::collections::HashMap<&'a str, &'a str>> for #name {
                 type Error = darpi::request::PathError;
 
                 fn try_from(args: std::collections::HashMap<&'a str, &'a str, std::collections::hash_map::RandomState>) -> Result<Self, Self::Error> {

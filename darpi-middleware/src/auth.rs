@@ -4,7 +4,7 @@ use darpi::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
     middleware,
     response::ResponderError,
-    RequestParts,
+    Body, Request,
 };
 use derive_more::Display;
 pub use jsonwebtoken::*;
@@ -39,7 +39,7 @@ impl Claims {
 #[middleware(Request)]
 pub async fn authorize(
     #[handler] role: impl UserRole,
-    #[request_parts] rp: &RequestParts,
+    #[request] rp: &Request<Body>,
     #[inject] algo_provider: Arc<dyn JwtAlgorithmProvider>,
     #[inject] token_ext: Arc<dyn TokenExtractor>,
     #[inject] secret_provider: Arc<dyn JwtSecretProvider>,
@@ -67,12 +67,14 @@ pub async fn authorize(
 /// UserRole represents user types within an application
 /// to identify access levels
 ///
-/// ```rust
+/// ```rust, no_run
 /// #[derive(Clone, PartialEq, PartialOrd)]
 /// pub enum Role {
 ///     User,
 ///     Admin,
 /// }
+///
+///
 ///
 /// impl Role {
 ///     pub fn from_str(role: &str) -> Role {
@@ -112,14 +114,14 @@ pub struct TokenExtractorImpl;
 
 #[async_trait]
 impl TokenExtractor for TokenExtractorImpl {
-    async fn extract(&self, rp: &RequestParts) -> Result<Token, Error> {
-        jwt_from_header(&rp.headers)
+    async fn extract(&self, r: &Request<Body>) -> Result<Token, Error> {
+        jwt_from_header(&r.headers())
     }
 }
 
 #[async_trait]
 pub trait TokenExtractor: Interface {
-    async fn extract(&self, p: &RequestParts) -> Result<Token, Error>;
+    async fn extract(&self, p: &Request<Body>) -> Result<Token, Error>;
 }
 
 #[derive(Component)]

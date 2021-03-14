@@ -3,7 +3,9 @@ use async_compression::futures::write::{BrotliEncoder, DeflateEncoder, GzipEncod
 use async_trait::async_trait;
 use darpi::header::{ToStrError, ACCEPT_ENCODING, CONTENT_ENCODING};
 use darpi::hyper::http::HeaderValue;
-use darpi::{middleware, response::ResponderError, Body, RequestParts, Response, StatusCode};
+use darpi::{
+    middleware, response::ResponderError, Body, Request, RequestParts, Response, StatusCode,
+};
 use darpi_headers::{AcceptEncoding, ContentEncoding, EncodingType, Error as ContentEncodingError};
 use derive_more::Display;
 use futures_util::{AsyncReadExt, AsyncWriteExt};
@@ -122,15 +124,12 @@ pub async fn compress(
 /// }
 /// ```
 #[middleware(Request)]
-pub async fn decompress(
-    #[request_parts] rp: &RequestParts,
-    #[body] mut b: &mut Body,
-) -> Result<(), Error> {
-    let mut full_body = darpi::body::to_bytes(&mut b)
+pub async fn decompress(#[request] r: &mut Request<Body>) -> Result<(), Error> {
+    let mut full_body = darpi::body::to_bytes(r.body_mut())
         .await
         .map_err(|e| Error::ReadBody(e))?;
 
-    if let Some(ce) = rp.headers.get(&CONTENT_ENCODING) {
+    if let Some(ce) = r.headers().get(&CONTENT_ENCODING) {
         let encodings =
             ContentEncoding::try_from(&*ce).map_err(|e| Error::InvalidContentEncoding(e))?;
         for et in encodings.into_iter() {
@@ -149,7 +148,7 @@ pub async fn decompress(
         }
     }
 
-    *b = Body::from(full_body);
+    *r.body_mut() = Body::from(full_body);
     Ok(())
 }
 

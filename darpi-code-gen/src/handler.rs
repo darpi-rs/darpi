@@ -41,7 +41,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
         Some(args)
     };
     let ArgsCall {
-        mut middleware_call,
+        middleware_call,
         job_call,
         container,
     } = make_args_call(args);
@@ -55,7 +55,11 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
     let mut allowed_query = true;
     let mut allowed_path = true;
     let mut allowed_body = true;
-    for arg in func.sig.inputs.iter_mut() {
+    let mut is_ws = false;
+    let mut consumed = None;
+    let mut last_args = vec![];
+
+    for arg in func.sig.inputs.iter() {
         if let FnArg::Typed(tp) = arg {
             let h_args = match make_handler_args(
                 tp,
@@ -67,25 +71,44 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                 Ok(k) => k,
                 Err(e) => return e,
             };
-            let (arg_name, method_resolve) = match h_args {
-                HandlerArgs::JobChan(i, ts) => (i, ts),
+            match h_args {
+                HandlerArgs::WS(i, ts) => {
+                    allowed_body = false;
+                    allowed_query = false;
+                    is_ws = true;
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
+                }
+                HandlerArgs::JobChan(i, ts) => {
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
+                }
                 HandlerArgs::Query(i, ts) => {
                     if !allowed_query {
                         return Error::new_spanned(arg, "One 1 query type is allowed")
                             .to_compile_error()
                             .into();
                     }
+                    consumed = Some(arg.clone());
                     allowed_query = false;
-                    (i, ts)
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
+                }
+                HandlerArgs::Parts(i, ts) => {
+                    consumed = Some(arg.clone());
+                    last_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
                 HandlerArgs::Body(i, ts) => {
+                    consumed = Some(arg.clone());
                     if !allowed_body {
                         return Error::new_spanned(arg, "One 1 body type is allowed")
                             .to_compile_error()
                             .into();
                     }
                     allowed_body = false;
-                    (i, ts)
+                    last_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
                 HandlerArgs::Path(i, ts) => {
                     if !allowed_path {
@@ -94,7 +117,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                             .into();
                     }
                     allowed_path = false;
-                    (i, ts)
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
                 HandlerArgs::Module(i, ts) => {
                     if !dummy_t.is_empty() {
@@ -105,7 +129,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                         .to_compile_error()
                         .into();
                     }
-                    (i, ts)
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
                 HandlerArgs::Middleware(i, ts, index, ttype) => {
                     if let Some(s) = max_middleware_index {
@@ -116,24 +141,34 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                         max_middleware_index = Some(index)
                     }
                     map.insert(index, ttype);
-                    (i, ts)
+                    make_args.push(ts);
+                    give_args.push(quote! {#i});
                 }
             };
 
-            make_args.push(method_resolve);
-            give_args.push(quote! {#arg_name});
             i += 1;
+        }
+    }
+
+    if is_ws && consumed.is_some() {
+        return Error::new_spanned(consumed.unwrap(), "Request is consumed by `ws`")
+            .to_compile_error()
+            .into();
+    }
+
+    for arg in func.sig.inputs.iter_mut() {
+        if let FnArg::Typed(tp) = arg {
             tp.attrs = Default::default();
         }
     }
 
-    middleware_call.req.sort_by(|a, b| a.0.cmp(&b.0));
-    middleware_call.res.sort_by(|a, b| a.0.cmp(&b.0));
+    if !is_ws {
+        make_args.push(quote! {let (parts, body) = args.request.into_parts();});
+    }
+    make_args.append(&mut last_args);
 
-    let middleware_req: Vec<proc_macro2::TokenStream> =
-        middleware_call.req.into_iter().map(|e| e.1).collect();
-    let middleware_res: Vec<proc_macro2::TokenStream> =
-        middleware_call.res.into_iter().map(|e| e.1).collect();
+    let middleware_req = middleware_call.req;
+    let middleware_res = middleware_call.res;
 
     let func_copy = func.clone();
 
@@ -159,7 +194,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
 
         #[darpi::async_trait]
         impl<'a #dummy_t> darpi::Handler<'a, #module_type> for #func_name #dummy_where {
-            async fn call(&self, mut args: darpi::Args<'a, #module_type>) -> Result<darpi::Response<darpi::Body>, std::convert::Infallible> {
+            async fn call(self, mut args: darpi::Args<'a, #module_type>) -> Result<darpi::Response<darpi::Body>, std::convert::Infallible> {
                use darpi::response::Responder;
                #[allow(unused_imports)]
                use shaku::HasComponent;
@@ -172,6 +207,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                #[allow(unused_imports)]
                use darpi::ResponseMiddleware;
                use darpi::{RequestJobFactory, ResponseJobFactory};
+               #[allow(unused_imports)]
+               use std::convert::TryFrom;
 
                 #(#middleware_req )*
                 #(#jobs_req )*
@@ -213,11 +250,7 @@ fn make_args_call(conf: Option<Config>) -> ArgsCall {
     }
 }
 
-fn get_req_middleware_arg(
-    e: &Func,
-    sorter: &mut u16,
-    m_len: usize,
-) -> Vec<proc_macro2::TokenStream> {
+fn get_req_middleware_arg(e: &Func, m_len: usize) -> Vec<proc_macro2::TokenStream> {
     let m_args: Vec<proc_macro2::TokenStream> = e
         .get_args()
         .iter()
@@ -238,7 +271,6 @@ fn get_req_middleware_arg(
                         panic!("middleware index out of bounds");
                     }
 
-                    *sorter += index;
                     let i_ident = format_ident!("m_arg_{}", index);
                     return quote! {#i_ident.clone()};
                 } else if arg_name == "response" {
@@ -311,7 +343,7 @@ fn make_query(
 ) -> proc_macro2::TokenStream {
     let inner = full.path.segments.last().cloned().expect("No query");
     quote! {
-        let #arg_name: #full = match #format::from_query(args.request_parts.uri.query()) {
+        let #arg_name: #full = match #format::from_query(args.request.uri().query()) {
             Ok(q) => q,
             Err(e) => return Ok(darpi::request::assert_respond_err::<#inner, darpi::request::QueryPayloadError>(e))
         };
@@ -344,12 +376,12 @@ fn make_json_body(
     let inner = &path.path.segments.last().expect("no body").arguments;
 
     let output = quote! {
-        match #format::#inner::assert_content_type(args.request_parts.headers.get("content-type"), #module_ident).await {
+        match #format::#inner::assert_content_type(parts.headers.get("content-type"), #module_ident).await {
             Ok(()) => {}
             Err(e) => return Ok(e.respond_err()),
         }
-        //todo pass container
-        let #arg_name: #path = match #format::extract(&args.request_parts.headers, args.body, #module_ident).await {
+
+        let #arg_name: #path = match #format::extract(&parts.headers, body, #module_ident).await {
             Ok(q) => q,
             Err(e) => return Ok(e.respond_err())
         };
@@ -364,6 +396,8 @@ enum HandlerArgs {
     Module(Ident, proc_macro2::TokenStream),
     Middleware(Ident, proc_macro2::TokenStream, u64, Type),
     JobChan(Ident, proc_macro2::TokenStream),
+    Parts(Ident, proc_macro2::TokenStream),
+    WS(Ident, proc_macro2::TokenStream),
 }
 
 fn make_handler_args(
@@ -402,8 +436,8 @@ fn make_handler_args(
                 let attr_ident = &attr_ident[0];
 
                 if attr_ident == "request_parts" {
-                    let res = quote! {let #arg_name = args.request_parts;};
-                    return Ok(HandlerArgs::JobChan(arg_name, res));
+                    let res = quote! {let #arg_name = &parts;};
+                    return Ok(HandlerArgs::Parts(arg_name, res));
                 }
             }
         }
@@ -428,7 +462,15 @@ fn make_handler_args(
             let attr_ident = &attr_ident[0];
 
             if attr_ident == "request_parts" {
-                let res = quote! {let #arg_name = args.request_parts;};
+                return Err(
+                    Error::new_spanned(attr, format!("Please add an `&` to your type"))
+                        .to_compile_error()
+                        .into(),
+                );
+            }
+
+            if attr_ident == "request" {
+                let res = quote! {let #arg_name = args.request;};
                 return Ok(HandlerArgs::JobChan(arg_name, res));
             }
 
@@ -456,7 +498,90 @@ fn make_handler_args(
                 };
                 return Ok(HandlerArgs::Module(arg_name, method_resolve));
             }
+
+            if attr_ident == "ws" {
+                let method_resolve = quote! {
+                    let #arg_name: #ttype = match darpi::hyper::upgrade::on(args.request).await {
+                        Ok(upgraded) => upgraded,
+                        Err(e) => return Ok(e.respond_err()),
+                    };
+                };
+                return Ok(HandlerArgs::WS(arg_name, method_resolve));
+            }
         }
+
+        if attr_ident.len() == 2 {
+            let left = &attr_ident[0];
+            let right = &attr_ident[1];
+
+            if left == "middleware" && right == "request" {
+                let index: ExprLit = match attr.parse_args() {
+                    Ok(el) => el,
+                    Err(_) => {
+                        return Err(Error::new(Span::call_site(), format!("missing index"))
+                            .to_compile_error()
+                            .into())
+                    }
+                };
+
+                let index = match index.lit {
+                    syn::Lit::Int(i) => {
+                        let value = match i.base10_parse::<u64>() {
+                            Ok(k) => k,
+                            Err(_) => {
+                                return Err(Error::new(
+                                    Span::call_site(),
+                                    format!("invalid middleware::request index"),
+                                )
+                                .to_compile_error()
+                                .into())
+                            }
+                        };
+                        value
+                    }
+                    _ => {
+                        return Err(Error::new(
+                            Span::call_site(),
+                            format!("invalid middleware::request index"),
+                        )
+                        .to_compile_error()
+                        .into())
+                    }
+                };
+
+                if index >= req_len as u64 {
+                    return Err(Error::new(
+                        Span::call_site(),
+                        format!("invalid middleware::request index {}", index),
+                    )
+                    .to_compile_error()
+                    .into());
+                }
+
+                let m_arg_ident = format_ident!("m_arg_{}", index);
+                let method_resolve = quote! {
+                    let #arg_name: #ttype = #m_arg_ident;
+                };
+                return Ok(HandlerArgs::Middleware(
+                    arg_name,
+                    method_resolve,
+                    index,
+                    *ttype.clone(),
+                ));
+            }
+
+            if left == "middleware" && right == "response" {
+                return Err(
+                    Error::new_spanned(left, "handlers args cannot refer to `middleware::response` return values because they are ran post handler")
+                        .to_compile_error()
+                        .into(),
+                );
+            }
+        }
+    }
+
+    if let Type::Tuple(_) = *ttype.clone() {
+        let attr_ident: Vec<Ident> = attr.path.segments.iter().map(|s| s.ident.clone()).collect();
 
         if attr_ident.len() == 2 {
             let left = &attr_ident[0];
@@ -535,8 +660,8 @@ fn make_handler_args(
 
 #[derive(Default)]
 struct MiddlewareCall {
-    req: Vec<(u16, TokenStream2)>,
-    res: Vec<(u16, TokenStream2)>,
+    req: Vec<TokenStream2>,
+    res: Vec<TokenStream2>,
     req_len: usize,
     res_len: usize,
 }
@@ -552,9 +677,8 @@ fn make_call_middleware(middleware: Option<ReqResArray>) -> MiddlewareCall {
             for e in &rm {
                 let name = e.get_name();
                 let m_arg_ident = format_ident!("m_arg_{}", i);
-                let mut sorter = 0_u16;
                 let m_args: Vec<proc_macro2::TokenStream> =
-                    get_req_middleware_arg(e, &mut sorter, rm.len());
+                    get_req_middleware_arg(e,rm.len());
 
                 let m_args = if m_args.len() > 1 {
                     quote! {(#(#m_args ,)*)}
@@ -564,12 +688,12 @@ fn make_call_middleware(middleware: Option<ReqResArray>) -> MiddlewareCall {
                     quote! {()}
                 };
 
-                middleware_req.push((sorter, quote! {
-                    let #m_arg_ident = match #name::call(&mut args.request_parts, args.container.clone(), &mut args.body, #m_args).await {
+                middleware_req.push(quote! {
+                    let #m_arg_ident = match #name::call(&mut args.request, args.container.clone(), #m_args).await {
                         Ok(k) => k,
                         Err(e) => return Ok(e.respond_err()),
                     };
-                }));
+                });
                 i += 1;
             }
 
@@ -592,12 +716,12 @@ fn make_call_middleware(middleware: Option<ReqResArray>) -> MiddlewareCall {
                     quote! {()}
                 };
 
-                middleware_res.push((std::u16::MAX - i - sorter, quote! {
+                middleware_res.push(quote! {
                     let #r_m_arg_ident = match #name::call(&mut rb, args.container.clone(), #m_args).await {
                         Ok(k) => k,
                         Err(e) => return Ok(e.respond_err()),
                     };
-                }));
+                });
                 i += 1;
             }
             rm.len()
@@ -648,28 +772,28 @@ fn make_job_call(jobs: Option<ReqResArray>) -> JobCall {
                 };
 
                 jobs_req.push(quote! {
-                        darpi::job::assert_request_job(#name);
-                        match #name::call(&args.request_parts, args.container.clone(), &args.body, #m_args).await.into() {
-                            darpi::job::Job::CpuBound(function) => {
-                                let res = darpi::spawn(function).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue CpuBound job err: {}", e);
-                                }
+                    darpi::job::assert_request_job(#name);
+                    match #name::call(&r, args.container.clone(), #m_args).await.into() {
+                        darpi::job::Job::CpuBound(function) => {
+                            let res = darpi::spawn(function).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue CpuBound job err: {}", e);
                             }
-                            darpi::job::Job::IOBlocking(function) => {
-                                let res = darpi::spawn(function).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue IOBlocking job err: {}", e);
-                                }
+                        }
+                        darpi::job::Job::IOBlocking(function) => {
+                            let res = darpi::spawn(function).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue IOBlocking job err: {}", e);
                             }
-                            darpi::job::Job::Future(fut) => {
-                                let res = darpi::spawn(fut).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue Future job err: {}", e);
-                                }
+                        }
+                        darpi::job::Job::Future(fut) => {
+                            let res = darpi::spawn(fut).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue Future job err: {}", e);
                             }
-                        };
-                    });
+                        }
+                    };
+                });
             });
         });
 
@@ -699,28 +823,28 @@ fn make_job_call(jobs: Option<ReqResArray>) -> JobCall {
                 };
 
                 jobs_res.push(quote! {
-                        darpi::job::assert_response_job(#name);
-                        match #name::call(&rb, args.container.clone(), #m_args).await.into() {
-                            darpi::job::Job::CpuBound(function) => {
-                                let res = darpi::spawn(function).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue CpuBound job err: {}", e);
-                                }
+                    darpi::job::assert_response_job(#name);
+                    match #name::call(&rb, args.container.clone(), #m_args).await.into() {
+                        darpi::job::Job::CpuBound(function) => {
+                            let res = darpi::spawn(function).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue CpuBound job err: {}", e);
                             }
-                            darpi::job::Job::IOBlocking(function) => {
-                                let res = darpi::spawn(function).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue IOBlocking job err: {}", e);
-                                }
+                        }
+                        darpi::job::Job::IOBlocking(function) => {
+                            let res = darpi::spawn(function).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue IOBlocking job err: {}", e);
                             }
-                            darpi::job::Job::Future(fut) => {
-                                let res = darpi::spawn(fut).await;
-                                if let Err(e) = res {
-                                    log::warn!("could not queue Future job err: {}", e);
-                                }
+                        }
+                        darpi::job::Job::Future(fut) => {
+                            let res = darpi::spawn(fut).await;
+                            if let Err(e) = res {
+                                log::warn!("could not queue Future job err: {}", e);
                             }
-                        };
-                    });
+                        }
+                    };
+                });
             });
         });
     });

@@ -2,7 +2,7 @@ use crate::request::FromRequestBody;
 use crate::response::{Responder, ResponderError};
 use crate::Response;
 use async_trait::async_trait;
-use bytes::buf::BufExt;
+use bytes::Buf;
 use derive_more::Display;
 use http::{header, HeaderMap, HeaderValue};
 use hyper::Body;

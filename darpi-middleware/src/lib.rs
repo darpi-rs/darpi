@@ -1,14 +1,22 @@
 use darpi::{
     logger::ReqFormatter, logger::RespFormatter, middleware, request::PayloadError, Body, HttpBody,
-    RequestParts, Response,
+    Request, Response,
 };
 
 pub mod auth;
 pub mod compression;
 
+use darpi::header::HeaderMap;
+use darpi::hyper::http::Extensions;
+use darpi::hyper::Uri;
 use log;
 use std::convert::Infallible;
 use std::time::Instant;
+
+#[middleware(Request)]
+pub async fn request_parts(#[request] r: &Request<Body>) -> Result<(HeaderMap, Uri), Infallible> {
+    Ok((r.headers().clone(), r.uri().clone()))
+}
 
 /// this middleware limits the request body size by a user passed argument
 /// the argument `size` indicates number of bytes
@@ -20,8 +28,11 @@ use std::time::Instant;
 /// }
 /// ```
 #[middleware(Request)]
-pub async fn body_size_limit(#[body] b: &Body, #[handler] size: u64) -> Result<(), PayloadError> {
-    if let Some(limit) = b.size_hint().upper() {
+pub async fn body_size_limit(
+    #[request] r: &Request<Body>,
+    #[handler] size: u64,
+) -> Result<(), PayloadError> {
+    if let Some(limit) = r.size_hint().upper() {
         if size < limit {
             return Err(PayloadError::Size(size, limit));
         }
@@ -31,11 +42,10 @@ pub async fn body_size_limit(#[body] b: &Body, #[handler] size: u64) -> Result<(
 
 #[middleware(Request)]
 pub async fn log_request(
-    #[request_parts] rp: &RequestParts,
-    #[body] b: &Body,
+    #[request] r: &Request<Body>,
     #[handler] formatter: impl ReqFormatter,
 ) -> Result<Instant, Infallible> {
-    let formatted = formatter.format_req(b, rp);
+    let formatted = formatter.format_req(r);
     log::info!("{}", formatted);
     Ok(Instant::now())
 }

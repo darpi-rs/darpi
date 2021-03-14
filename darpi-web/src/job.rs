@@ -1,8 +1,7 @@
-use crate::{Body, Response};
+use crate::{Body, Request, Response};
 use async_trait::async_trait;
 use futures::Future;
 use futures_util::FutureExt;
-use http::request::Parts as RequestParts;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -14,12 +13,7 @@ where
     type HandlerArgs;
     type Return: Into<Job<T>>;
 
-    async fn call(
-        p: &RequestParts,
-        module: Arc<C>,
-        b: &Body,
-        ha: Self::HandlerArgs,
-    ) -> Self::Return;
+    async fn call(p: &Request<Body>, module: Arc<C>, ha: Self::HandlerArgs) -> Self::Return;
 }
 
 pub trait IsRequest {}
