@@ -55,7 +55,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
     let mut allowed_query = true;
     let mut allowed_path = true;
     let mut allowed_body = true;
-    let mut is_ws = false;
+    let mut is_request = false;
     let mut consumed = None;
     let mut last_args = vec![];
 
@@ -72,14 +72,10 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                 Err(e) => return e,
             };
             match h_args {
-                HandlerArgs::WS(i, ts) => {
+                HandlerArgs::Request(i, ts) => {
                     allowed_body = false;
                     allowed_query = false;
-                    is_ws = true;
-                    make_args.push(ts);
-                    give_args.push(quote! {#i});
-                }
-                HandlerArgs::JobChan(i, ts) => {
+                    is_request = true;
                     make_args.push(ts);
                     give_args.push(quote! {#i});
                 }
@@ -150,8 +146,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
         }
     }
 
-    if is_ws && consumed.is_some() {
-        return Error::new_spanned(consumed.unwrap(), "Request is consumed by `ws`")
+    if is_request && consumed.is_some() {
+        return Error::new_spanned(consumed.unwrap(), "Request is consumed by `#[request]`")
             .to_compile_error()
             .into();
     }
@@ -162,7 +158,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
         }
     }
 
-    if !is_ws {
+    if !is_request {
         make_args.push(quote! {let (parts, body) = args.request.into_parts();});
     }
     make_args.append(&mut last_args);
@@ -219,7 +215,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
 
                #(#middleware_res )*
                #(#jobs_res )*
-
+                println!("{:#?}", rb);
                 Ok(rb)
             }
         }
@@ -395,9 +391,8 @@ enum HandlerArgs {
     Path(Ident, proc_macro2::TokenStream),
     Module(Ident, proc_macro2::TokenStream),
     Middleware(Ident, proc_macro2::TokenStream, u64, Type),
-    JobChan(Ident, proc_macro2::TokenStream),
     Parts(Ident, proc_macro2::TokenStream),
-    WS(Ident, proc_macro2::TokenStream),
+    Request(Ident, proc_macro2::TokenStream),
 }
 
 fn make_handler_args(
@@ -471,7 +466,7 @@ fn make_handler_args(
 
             if attr_ident == "request" {
                 let res = quote! {let #arg_name = args.request;};
-                return Ok(HandlerArgs::JobChan(arg_name, res));
+                return Ok(HandlerArgs::Request(arg_name, res));
             }
 
             if attr_ident == "query" {
@@ -497,16 +492,6 @@ fn make_handler_args(
                     let #arg_name: #ttype = #module_ident.resolve();
                 };
                 return Ok(HandlerArgs::Module(arg_name, method_resolve));
-            }
-
-            if attr_ident == "ws" {
-                let method_resolve = quote! {
-                    let #arg_name: #ttype = match darpi::hyper::upgrade::on(args.request).await {
-                        Ok(upgraded) => upgraded,
-                        Err(e) => return Ok(e.respond_err()),
-                    };
-                };
-                return Ok(HandlerArgs::WS(arg_name, method_resolve));
             }
         }
 

@@ -1,14 +1,12 @@
 use darpi::futures::{SinkExt, StreamExt};
-use darpi::header::HeaderMap;
+use darpi::header::{HeaderMap, SEC_WEBSOCKET_KEY};
 use darpi::hyper::Uri;
 use darpi::{
-    app, handler, job::FutureJob, response::UpgradeWS, Method, Request, RequestParts, Response,
-    StatusCode,
+    app, handler, job::FutureJob, response::UpgradeWS, Body, Method, Request, RequestParts,
+    Response, StatusCode,
 };
-use darpi_middleware::request_parts;
-use hyper::upgrade::Upgraded;
 use shaku::module;
-use tokio_tungstenite::accept_async;
+use tokio_tungstenite::{tungstenite::protocol::Role, WebSocketStream};
 
 fn make_container() -> Container {
     let module = Container::builder().build();
@@ -22,26 +20,22 @@ module! {
     }
 }
 
-//todo disallow body extractors when having ws
-#[handler({
-    middleware: {
-        request: [request_parts]
-    }
-})]
-async fn hello_world(
-    #[middleware::request(0)] _parts: (HeaderMap, Uri),
-    #[ws] upgraded: Upgraded,
-) -> Result<UpgradeWS, String> {
-    let mut ws_stream = accept_async(upgraded).await.expect("Failed to accept");
+#[handler]
+async fn hello_world(#[request] r: Request<Body>) -> Result<UpgradeWS, String> {
+    let resp = UpgradeWS::from_header(r.headers());
 
-    //this runs in the background
     darpi::spawn(FutureJob::from(async move {
+        let upgraded = darpi::hyper::upgrade::on(r).await.unwrap();
+        let mut ws_stream = WebSocketStream::from_raw_socket(upgraded, Role::Server, None).await;
+
         while let Some(msg) = ws_stream.next().await {
             let msg = msg.unwrap();
 
             if msg.is_text() || msg.is_binary() {
+                println!("received a message `{}`", msg);
                 ws_stream.send(msg).await.unwrap();
             } else if msg.is_close() {
+                println!("closing websocket");
                 return;
             }
         }
@@ -49,7 +43,7 @@ async fn hello_world(
     .await
     .map_err(|e| format!("{}", e))?;
 
-    Ok(UpgradeWS)
+    Ok(resp.unwrap())
 }
 
 //todo fix when container missing
@@ -65,7 +59,7 @@ async fn main() -> Result<(), darpi::Error> {
             type: Container
         },
         handlers: [{
-            route: "/hello_world",
+            route: "/",
             method: Method::GET,
             handler: hello_world
         }]

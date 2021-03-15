@@ -1,7 +1,8 @@
-use hyper::{Body, Error, Response, StatusCode};
-
+use crate::ws;
 use bytes::BytesMut;
-use http::header;
+use http::{header, HeaderValue};
+use hyper::header::SEC_WEBSOCKET_KEY;
+use hyper::{Body, Error, HeaderMap, Response, StatusCode};
 use std::convert::Infallible;
 use std::io::Write;
 use std::{fmt, io};
@@ -13,7 +14,17 @@ pub trait Responder {
     fn respond(self) -> Response<Body>;
 }
 
-pub struct UpgradeWS;
+#[derive(Debug)]
+pub struct UpgradeWS {
+    key: HeaderValue,
+}
+
+impl UpgradeWS {
+    pub fn from_header(headers: &HeaderMap) -> Option<Self> {
+        let key = headers.get(SEC_WEBSOCKET_KEY)?;
+        Some(Self { key: key.clone() })
+    }
+}
 
 impl Responder for UpgradeWS {
     fn respond(self) -> Response<Body> {
@@ -21,6 +32,10 @@ impl Responder for UpgradeWS {
             .status(StatusCode::SWITCHING_PROTOCOLS)
             .header(header::UPGRADE, "websocket")
             .header(header::CONNECTION, "upgrade")
+            .header(
+                header::SEC_WEBSOCKET_ACCEPT,
+                ws::convert_key(self.key.as_bytes()),
+            )
             .body(Body::empty())
             .unwrap()
     }

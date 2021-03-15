@@ -10,5 +10,6 @@ pub mod logger;
 pub mod middleware;
 pub mod request;
 pub mod response;
+pub mod ws;
 pub mod xml;
 pub mod yaml;

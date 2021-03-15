@@ -28,3 +28,5 @@ serde-xml-rs = "0.4.1"
 chrono = "0.4"
 tokio = {version = "1.2.0", features = ["full"]}
 tokio-tungstenite = "0.14.0"
+sha1 = "0.6.0"
+base64 = "0.13.0"
