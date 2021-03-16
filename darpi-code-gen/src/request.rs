@@ -27,7 +27,7 @@ pub(crate) fn make_path_type(input: TokenStream) -> TokenStream {
                         None => return Err(darpi::request::PathError::Missing(#name_str.into()))
                     };
 
-                    let #name = match #ttype::try_from(#name) {
+                    let #name: #ttype = match std::str::FromStr::from_str(#name) {
                         Ok(k) => k,
                         Err(e) => return Err(darpi::request::PathError::Deserialize(e.to_string()))
                     };
