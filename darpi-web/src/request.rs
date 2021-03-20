@@ -10,44 +10,17 @@ use serde_urlencoded;
 use std::sync::Arc;
 
 #[async_trait]
-pub trait FromRequestBodyWithContainer<T, E, C>
-where
-    T: de::DeserializeOwned + 'static,
-    E: ResponderError + 'static,
-    C: 'static + Sync + Send,
-{
-    async fn assert_content_type(_content_type: Option<&HeaderValue>, _: Arc<C>) -> Result<(), E> {
-        Ok(())
-    }
-    async fn extract(headers: &HeaderMap, b: Body, _: Arc<C>) -> Result<T, E>;
-}
-
-#[async_trait]
 pub trait FromRequestBody<T, E>
 where
-    T: de::DeserializeOwned + 'static,
-    E: ResponderError + 'static,
+    T: de::DeserializeOwned + 'static + Send + Sync,
+    E: ResponderError + 'static + Send + Sync,
 {
-    async fn assert_content_type(_content_type: Option<&HeaderValue>) -> Result<(), E> {
-        Ok(())
-    }
-    async fn extract(headers: &HeaderMap, b: Body) -> Result<T, E>;
-}
-
-#[async_trait]
-impl<F, T, E, C> FromRequestBodyWithContainer<T, E, C> for F
-where
-    F: FromRequestBody<T, E> + 'static,
-    T: de::DeserializeOwned + 'static,
-    E: ResponderError + 'static,
-    C: std::any::Any + Sync + Send,
-{
-    async fn assert_content_type(content_type: Option<&HeaderValue>, _: Arc<C>) -> Result<(), E> {
-        F::assert_content_type(content_type).await
-    }
-    async fn extract(headers: &HeaderMap<HeaderValue>, b: Body, _: Arc<C>) -> Result<T, E> {
-        F::extract(headers, b).await
-    }
+    type Container = Arc<dyn std::any::Any + Send + 'static + Sync>;
+    async fn assert_content_type(
+        _content_type: Option<&HeaderValue>,
+        _: Self::Container,
+    ) -> Result<(), E>;
+    async fn extract(headers: &HeaderMap, b: Body, _: Self::Container) -> Result<T, E>;
 }
 
 #[derive(Debug, Display, From)]

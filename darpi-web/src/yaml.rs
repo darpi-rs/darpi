@@ -26,9 +26,12 @@ impl<T> Yaml<T> {
 #[async_trait]
 impl<T> FromRequestBody<Yaml<T>, YamlErr> for Yaml<T>
 where
-    T: DeserializeOwned + 'static,
+    T: DeserializeOwned + 'static + Send + Sync,
 {
-    async fn assert_content_type(content_type: Option<&HeaderValue>) -> Result<(), YamlErr> {
+    async fn assert_content_type(
+        content_type: Option<&HeaderValue>,
+        _: Self::Container,
+    ) -> Result<(), YamlErr> {
         if let Some(hv) = content_type {
             if hv != "application/yaml" && hv != "text/yaml" {
                 return Err(YamlErr::InvalidContentType);
@@ -37,7 +40,7 @@ where
         }
         Err(YamlErr::MissingContentType)
     }
-    async fn extract(_: &HeaderMap, b: Body) -> Result<Yaml<T>, YamlErr> {
+    async fn extract(_: &HeaderMap, b: Body, _: Self::Container) -> Result<Yaml<T>, YamlErr> {
         Self::deserialize_future(b).await
     }
 }

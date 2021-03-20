@@ -196,7 +196,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                use shaku::HasComponent;
                #[allow(unused_imports)]
                use darpi::request::FromQuery;
-               use darpi::request::FromRequestBodyWithContainer;
+               use darpi::request::FromRequestBody;
                use darpi::response::ResponderError;
                #[allow(unused_imports)]
                use darpi::RequestMiddleware;

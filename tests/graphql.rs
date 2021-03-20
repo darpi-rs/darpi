@@ -406,7 +406,7 @@ module! {
 })]
 async fn index_get(
     #[inject] schema: Arc<dyn SchemaGetter>,
-    #[query] req: GraphQLBody<Request>,
+    #[query] req: GraphQLBody<Request, Container>,
 ) -> Response {
     schema.get().execute(req.0.into_inner()).await.into()
 }
@@ -416,7 +416,7 @@ async fn index_get(
 })]
 async fn index_post(
     #[inject] schema: Arc<dyn SchemaGetter>,
-    #[body] req: GraphQLBody<Request>,
+    #[body] req: GraphQLBody<Request, Container>,
 ) -> Response {
     schema.get().execute(req.0.into_inner()).await.into()
 }

@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![feature(associated_type_defaults)]
 
 pub use hyper::{body::HttpBody, Body, Request, Response, StatusCode};
 pub use json::Json;

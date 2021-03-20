@@ -27,9 +27,12 @@ impl<T> Xml<T> {
 #[async_trait]
 impl<T> FromRequestBody<Xml<T>, XmlErr> for Xml<T>
 where
-    T: DeserializeOwned + 'static,
+    T: DeserializeOwned + 'static + Send + Sync,
 {
-    async fn assert_content_type(content_type: Option<&HeaderValue>) -> Result<(), XmlErr> {
+    async fn assert_content_type(
+        content_type: Option<&HeaderValue>,
+        _: Self::Container,
+    ) -> Result<(), XmlErr> {
         if let Some(hv) = content_type {
             if hv != "application/xml" {
                 return Err(XmlErr::InvalidContentType);
@@ -38,7 +41,7 @@ where
         }
         Err(XmlErr::MissingContentType)
     }
-    async fn extract(_: &HeaderMap, b: Body) -> Result<Xml<T>, XmlErr> {
+    async fn extract(_: &HeaderMap, b: Body, _: Self::Container) -> Result<Xml<T>, XmlErr> {
         Self::deserialize_future(b).await
     }
 }
