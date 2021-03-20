@@ -30,9 +30,12 @@ impl<T> Json<T> {
 #[async_trait]
 impl<T> FromRequestBody<Json<T>, JsonErr> for Json<T>
 where
-    T: DeserializeOwned + 'static,
+    T: DeserializeOwned + 'static + Send + Sync,
 {
-    async fn assert_content_type(content_type: Option<&HeaderValue>) -> Result<(), JsonErr> {
+    async fn assert_content_type(
+        content_type: Option<&HeaderValue>,
+        _: Self::Container,
+    ) -> Result<(), JsonErr> {
         if let Some(hv) = content_type {
             if hv != "application/json" {
                 return Err(JsonErr::InvalidContentType);
@@ -41,7 +44,7 @@ where
         }
         Err(JsonErr::MissingContentType)
     }
-    async fn extract(_: &HeaderMap, b: Body) -> Result<Json<T>, JsonErr> {
+    async fn extract(_: &HeaderMap, b: Body, _: Self::Container) -> Result<Json<T>, JsonErr> {
         Self::deserialize_future(b).await
     }
 }

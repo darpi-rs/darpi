@@ -70,8 +70,6 @@ async fn first_sync_io_job() -> IOBlockingJob {
     job.into()
 }
 
-// todo make sure Request is passed by value
-// show a nice error
 #[handler({
     jobs: {
         response: [first_sync_job, first_sync_job1]
