@@ -1,6 +1,6 @@
 [package]
 name = "darpi"
-version = "0.1.4-beta"
+version = "0.1.4-beta.1"
 authors = ["Petar Dambovaliev <petar.atanasov.1987@gmail.com>"]
 edition = "2018"
 description = "A web framework with type safety and speed in mind"
@@ -26,9 +26,9 @@ opt-level = 3
 codegen-units = 1
 
 [dependencies]
-darpi-web = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
-darpi-code-gen = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
-darpi-route = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi-web = "0.1.0-beta.1"
+darpi-code-gen = "0.1.1-beta.1"
+darpi-route = "0.1.0-beta"
 hyper = {version = "0.14.4", features = ["server", "http1", "http2", "stream", "tcp"]}
 futures = "0.3.8"
 shaku = {version = "0.5.0", features = ["thread_safe"]}
