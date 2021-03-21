@@ -1,6 +1,6 @@
 [package]
 name = "darpi-graphql"
-version = "0.1.0-beta"
+version = "0.1.0-beta.1"
 authors = ["Petar Dambovaliev <petar.atanasov.1987@gmail.com>"]
 edition = "2018"
 description = "A set of middlewares for darpi"
@@ -15,7 +15,7 @@ async-trait = "0.1.42"
 async-graphql = "2.5.4"
 serde = { version = "1.0", features = ["derive"] }
 futures-util = "0.3.8"
-darpi = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi = "0.1.4-beta.1"
 http = "0.2.1"
 derive_more = "0.99.11"
 serde_json = "1.0.60"
