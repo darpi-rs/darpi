@@ -1,6 +1,6 @@
 [package]
 name = "darpi-code-gen"
-version = "0.1.1-beta"
+version = "0.1.1-beta.1"
 authors = ["Petar Dambovaliev <petar.atanasov.1987@gmail.com>"]
 description = "code generation for the web api framework darpi"
 keywords = ["darpi-code-gen", "proc_macro", "procmacro"]
@@ -15,7 +15,7 @@ proc-macro = true
 quote = "1"
 proc-macro2 = "1.0"
 syn = {version = "1.0", features = ["full"]}
-darpi-route = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi-route = "0.1.0"
 logos = "0.11.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
