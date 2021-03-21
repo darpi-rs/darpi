@@ -10,8 +10,8 @@ repository = "https://github.com/rust-darpi/darpi.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-darpi-code-gen = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
-darpi-route = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi-code-gen = "0.1.1-beta.1"
+darpi-route = "0.1.0"
 serde_urlencoded = "0.7.0"
 derive_more = "0.99.11"
 serde = "1.0.118"
