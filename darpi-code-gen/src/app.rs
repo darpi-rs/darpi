@@ -331,8 +331,10 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                 let module = self.module.clone();
                 let handlers = self.handlers.clone();
 
-                std::panic::set_hook(Box::new(|panic| {
-                    darpi::log::warn!("panic reason:  `{}`", panic);
+                let default_hook = std::panic::take_hook();
+                std::panic::set_hook(Box::new(move |panic| {
+                    darpi::log::error!("panic reason:  `{}`", panic);
+                    default_hook(panic);
                 }));
 
                 darpi::rayon::ThreadPoolBuilder::new()
