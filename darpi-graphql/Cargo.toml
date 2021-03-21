@@ -12,7 +12,7 @@ async-trait = "0.1.42"
 async-graphql = "2.5.4"
 serde = { version = "1.0", features = ["derive"] }
 futures-util = "0.3.8"
-darpi = {path = "../../darpi" }
+darpi = "0.1.2-beta"
 http = "0.2.1"
 derive_more = "0.99.11"
 serde_json = "1.0.60"

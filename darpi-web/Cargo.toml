@@ -21,8 +21,8 @@ logos = "0.11.4"
 log = "0.4"
 futures-util = "0.3.8"
 async-trait = "0.1.42"
-darpi-code-gen = { path = "../darpi-code-gen" }
-darpi-route = { path = "../darpi-route" }
+darpi-code-gen = "0.1.0-beta"
+darpi-route = "0.1.0-beta"
 serde_yaml = "0.8"
 serde-xml-rs = "0.4.1"
 chrono = "0.4"
