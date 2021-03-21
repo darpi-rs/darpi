@@ -11,7 +11,7 @@ repository = "https://github.com/rust-darpi/darpi.git"
 
 [dependencies]
 darpi = "0.1.4-beta.1"
-darpi-headers = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi-headers = "0.1.0-beta.1"
 serde = { version = "1.0", features = ["derive"] }
 jsonwebtoken = "=7.2"
 chrono = "0.4"
