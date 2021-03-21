@@ -42,9 +42,9 @@ tokio = {version = "1.2.0", features = ["full"]}
 jsonwebtoken = "=7.2"
 futures-util = "0.3.8"
 derive_more = "0.99.11"
-darpi-middleware = { path = "./darpi-middleware" }
-darpi-headers = { path = "./darpi-headers" }
-darpi-graphql = { path = "./darpi-graphql" }
+darpi-middleware = "0.1.0-beta"
+darpi-headers = "0.1.0-beta"
+darpi-graphql = "0.1.0-beta"
 env_logger = "0.8.2"
 async-graphql = "2.5.4"
 slab = "0.4.2"
