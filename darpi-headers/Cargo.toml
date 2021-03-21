@@ -10,5 +10,5 @@ repository = "https://github.com/rust-darpi/darpi.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-darpi = "0.1.2-beta"
+darpi = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
 derive_more = "0.99.11"

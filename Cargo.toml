@@ -26,15 +26,15 @@ opt-level = 3
 codegen-units = 1
 
 [dependencies]
+darpi-web = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi-code-gen = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi-route = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
 hyper = {version = "0.14.4", features = ["server", "http1", "http2", "stream", "tcp"]}
 futures = "0.3.8"
 shaku = {version = "0.5.0", features = ["thread_safe"]}
 http = "0.2.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.60"
-darpi-web = "0.1.0-beta"
-darpi-code-gen = "0.1.1-beta"
-darpi-route = "0.1.0-beta"
 async-trait = "0.1.42"
 chrono = "0.4"
 rayon = "1.5.0"
@@ -42,12 +42,12 @@ log = "0.4.13"
 tokio = {version = "1.2.0", features = ["full"]}
 
 [dev-dependencies]
+darpi-middleware = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi-headers = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi-graphql = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
 jsonwebtoken = "=7.2"
 futures-util = "0.3.8"
 derive_more = "0.99.11"
-darpi-middleware = "0.1.0-beta"
-darpi-headers = "0.1.0-beta"
-darpi-graphql = "0.1.0-beta"
 env_logger = "0.8.2"
 async-graphql = "2.5.4"
 slab = "0.4.2"

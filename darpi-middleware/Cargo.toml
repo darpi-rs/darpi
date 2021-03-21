@@ -10,7 +10,8 @@ repository = "https://github.com/rust-darpi/darpi.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-darpi = "0.1.2-beta"
+darpi = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
+darpi-headers = {git = "https://github.com/darpi-rs/darpi.git", branch = "master"}
 serde = { version = "1.0", features = ["derive"] }
 jsonwebtoken = "=7.2"
 chrono = "0.4"
@@ -19,5 +20,4 @@ shaku = {version = "0.5.0", features = ["thread_safe"]}
 async-trait = "0.1.42"
 async-compression = {version = "0.3.7", features = ["all", "futures-io"]}
 futures-util = "0.3.8"
-darpi-headers = "0.1.0-beta"
 log = "0.4.13"
