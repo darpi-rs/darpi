@@ -10,8 +10,8 @@ repository = "https://github.com/rust-darpi/darpi.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-darpi = "0.1.4-beta.1"
-darpi-headers = "0.1.0-beta.1"
+darpi = {path = "../"}
+darpi-headers = {path = "../darpi-headers"}
 serde = { version = "1.0", features = ["derive"] }
 jsonwebtoken = "=7.2"
 chrono = "0.4"

@@ -151,7 +151,7 @@ async fn do_something123(
 
 //RUST_LOG=darpi=info cargo test --test job -- --nocapture
 //#[tokio::test]
-#[tokio::test]
+#[tokio::main]
 async fn main() -> Result<(), darpi::Error> {
     env_logger::builder().is_test(true).try_init().unwrap();
 

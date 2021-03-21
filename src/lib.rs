@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
-
+#![feature(type_alias_impl_trait)]
+#![feature(associated_type_defaults)]
+#![feature(min_type_alias_impl_trait)]
 pub use darpi_code_gen::{
     app, handler, job_factory, middleware, req_formatter, resp_formatter, Path, Query,
 };
@@ -38,63 +40,62 @@ where
     T::from_str(&s).map_err(de::Error::custom)
 }
 
-pub async fn oneshot<T>(job: impl Into<Job<T>>) -> Result<Receiver<T>, SendError<Job<T>>>
-where
-    T: Send + 'static,
-{
-    let job = job.into();
-    match job {
-        Job::Future(fut) => {
-            let (otx, recv) = oneshot::channel();
-            let handle = tokio::runtime::Handle::current();
-            handle.spawn(async {
-                let _ = otx.send(fut.into_inner().await);
-            });
-            Ok(recv)
-        }
-        Job::CpuBound(cpu) => {
-            let (otx, recv) = oneshot::channel();
-            rayon::spawn(move || {
-                let _ = otx.send(cpu.into_inner()());
-            });
-            Ok(recv)
-        }
-        Job::IOBlocking(io_blocking) => {
-            let (otx, recv) = oneshot::channel();
-            let handle = tokio::runtime::Handle::current();
-            handle.spawn_blocking(move || {
-                let _ = otx.send(io_blocking.into_inner()());
-            });
-            Ok(recv)
-        }
-    }
-}
-
-pub async fn spawn<T>(job: impl Into<Job<T>>) -> Result<(), SendError<Job<T>>>
-where
-    T: Send + 'static,
-{
-    let job = job.into();
-    match job {
-        Job::Future(fut) => {
-            let handle = tokio::runtime::Handle::current();
-            handle.spawn(async {
-                fut.into_inner().await;
-            });
-            Ok(())
-        }
-        Job::CpuBound(cpu) => {
-            rayon::spawn(move || {
-                cpu.into_inner()();
-            });
-            Ok(())
-        }
-        Job::IOBlocking(io_blocking) => {
-            let handle = tokio::runtime::Handle::current();
-            handle.spawn_blocking(move || {
-                io_blocking.into_inner()();
-            });
-            Ok(())
-        }
-    }
-}
+// pub async fn oneshot<T>(job: impl Job<T>) -> Result<Receiver<T>, SendError<Job<T>>>
+// where
+//     T: Send + 'static,
+// {
+//     match job {
+//         Job::Future(fut) => {
+//             let (otx, recv) = oneshot::channel();
+//             let handle = tokio::runtime::Handle::current();
+//             handle.spawn(async {
+//                 let _ = otx.send(fut.into_inner().await);
+//             });
+//             Ok(recv)
+//         }
+//         Job::CpuBound(cpu) => {
+//             let (otx, recv) = oneshot::channel();
+//             rayon::spawn(move || {
+//                 let _ = otx.send(cpu.into_inner()());
+//             });
+//             Ok(recv)
+//         }
+//         Job::IOBlocking(io_blocking) => {
+//             let (otx, recv) = oneshot::channel();
+//             let handle = tokio::runtime::Handle::current();
+//             handle.spawn_blocking(move || {
+//                 let _ = otx.send(io_blocking.into_inner()());
+//             });
+//             Ok(recv)
+//         }
+//     }
+// }
+//
+// pub async fn spawn<T>(job: impl Job<T>) -> Result<(), SendError<Job<T>>>
+// where
+//     T: Send + 'static,
+// {
+//     let job = job.into();
+//     match job {
+//         Job::Future(fut) => {
+//             let handle = tokio::runtime::Handle::current();
+//             handle.spawn(async {
+//                 fut.into_inner().await;
+//             });
+//             Ok(())
+//         }
+//         Job::CpuBound(cpu) => {
+//             rayon::spawn(move || {
+//                 cpu.into_inner()();
+//             });
+//             Ok(())
+//         }
+//         Job::IOBlocking(io_blocking) => {
+//             let handle = tokio::runtime::Handle::current();
+//             handle.spawn_blocking(move || {
+//                 io_blocking.into_inner()();
+//             });
+//             Ok(())
+//         }
+//     }
+// }
