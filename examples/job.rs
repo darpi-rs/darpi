@@ -1,4 +1,3 @@
-use darpi::futures::{FutureExt, TryFutureExt};
 use darpi::job::{CpuJob, FutureJob, IOBlockingJob};
 use darpi::{
     app, handler, job_factory, logger::DefaultFormat, middleware, Body, Json, Method, Path, Query,
@@ -8,7 +7,7 @@ use darpi_middleware::{log_request, log_response};
 use env_logger;
 use serde::{Deserialize, Serialize};
 use shaku::module;
-use std::convert::{Infallible, TryFrom};
+use std::convert::Infallible;
 
 fn make_container() -> Container {
     let module = Container::builder().build();
@@ -147,7 +146,6 @@ async fn do_something123(
     )
 }
 
-//todo leak the container so there isn't the overhead of Arc
 //todo add configuration for the 3 different runtimes so the
 // runtime serving requests doesn't get stomped
 

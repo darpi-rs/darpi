@@ -25,7 +25,7 @@ async fn hello_world(#[request] r: Request<Body>) -> Result<UpgradeWS, String> {
     let resp = UpgradeWS::from_header(r.headers());
 
     darpi::spawn(FutureJob::from(async move {
-        let upgraded = darpi::hyper::upgrade::on(r).await.unwrap();
+        let upgraded = darpi::upgrade::on(r).await.unwrap();
         let mut ws_stream = WebSocketStream::from_raw_socket(upgraded, Role::Server, None).await;
 
         while let Some(msg) = ws_stream.next().await {

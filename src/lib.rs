@@ -15,6 +15,7 @@ pub use chrono;
 pub use darpi_route::{ReqRoute, Route};
 pub use futures;
 pub use http::{header, request::Parts as RequestParts, Method, StatusCode};
+pub use hyper::upgrade;
 pub use hyper::{self, body, body::HttpBody, service, Body, Error, Request, Response, Server};
 pub use log;
 pub use rayon;
