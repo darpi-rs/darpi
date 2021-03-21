@@ -6,6 +6,7 @@ description = "code generation for the web api framework darpi"
 keywords = ["darpi-code-gen", "proc_macro", "procmacro"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/rust-darpi/darpi.git"
 
 [lib]
 proc-macro = true

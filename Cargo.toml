@@ -21,6 +21,9 @@ members = [
 
 [profile.release]
 panic = "unwind"
+lto = true
+opt-level = 3
+codegen-units = 1
 
 [dependencies]
 hyper = {version = "0.14.4", features = ["server", "http1", "http2", "stream", "tcp"]}
