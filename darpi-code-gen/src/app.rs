@@ -56,16 +56,25 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         }
     };
 
-    let (module_def, module_let, module_self) = config.container.map_or(Default::default(), |mp| {
-        let patj = mp.ttype;
-        let make_container_func = mp.factory;
+    let (module_def, module_let, module_self) = config.container.map_or(
+        {
+            (
+                quote! {module: std::sync::Arc<darpi::EmptyContainer>,},
+                quote! {let module = std::sync::Arc::new(darpi::make_empty_container());},
+                quote! {module: module,},
+            )
+        },
+        |mp| {
+            let patj = mp.ttype;
+            let make_container_func = mp.factory;
 
-        (
-            quote! {module: std::sync::Arc<#patj>,},
-            quote! {let module = std::sync::Arc::new(#make_container_func);},
-            quote! {module: module,},
-        )
-    });
+            (
+                quote! {module: std::sync::Arc<#patj>,},
+                quote! {let module = std::sync::Arc::new(#make_container_func);},
+                quote! {module: module,},
+            )
+        },
+    );
 
     let (middleware_req, middleware_res) =
         config.middleware.map_or(Default::default(), |middleware| {

@@ -11,6 +11,8 @@ use http::HeaderMap;
 use serde::{de::DeserializeOwned, Deserialize, Deserializer};
 use serde_json;
 use shaku::{Component, HasComponent, Interface};
+use std::fmt::Error;
+use std::sync::mpsc::SendError;
 use std::sync::Arc;
 
 #[derive(Debug, Deserialize, Query)]
@@ -71,6 +73,7 @@ impl darpi::response::ErrResponder<darpi::request::QueryPayloadError, darpi::Bod
 pub enum GraphQLError {
     ParseRequest(ParseRequestError),
     Hyper(hyper::Error),
+    Send(String),
 }
 
 impl From<ParseRequestError> for GraphQLError {
@@ -132,18 +135,20 @@ where
             .and_then(|value| value.to_str().ok())
             .map(|value| value.to_string());
 
-        let (mut tx, rx): (
+        let (tx, rx): (
             Sender<std::result::Result<Bytes, _>>,
             Receiver<std::result::Result<Bytes, _>>,
         ) = bounded(16);
 
-        tokio::runtime::Handle::current().spawn(async move {
+        darpi::spawn(darpi::job::FutureJob::from(async move {
             while let Some(item) = body.next().await {
                 if tx.send(item).await.is_err() {
                     return;
                 }
             }
-        });
+        }))
+        .await
+        .map_err(|e| GraphQLError::Send(e.to_string()))?;
 
         let opts = container.resolve().get();
         Ok(GraphQLBody(BatchRequest(

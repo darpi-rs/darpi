@@ -110,7 +110,7 @@ async fn hello_world1() -> Result<String, String> {
 
 #[middleware(Request)]
 pub(crate) async fn roundtrip(
-    #[request] _rp: &Request<Body>,
+    #[request] _rp: &mut Request<Body>,
     #[handler] msg: impl AsRef<str> + Send + Sync + 'static,
 ) -> Result<String, Infallible> {
     let res = format!("{} from roundtrip middleware", msg.as_ref());
@@ -123,7 +123,7 @@ pub(crate) async fn roundtrip(
         request: [roundtrip("blah")]
     }
 })]
-async fn do_something123(
+async fn do_something(
     // the request query is deserialized into Name
     // if deseriliazation fails, it will result in an error response
     // to make it optional wrap it in an Option<Name>
@@ -173,8 +173,12 @@ async fn main() -> Result<(), darpi::Error> {
             route: "/hello_world",
             method: Method::GET,
             handler: hello_world
+        },{
+            route: "/do_something",
+            method: Method::GET,
+            handler: do_something
         }]
     })
     .run()
-    .await
+    .await //do_something
 }

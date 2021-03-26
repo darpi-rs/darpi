@@ -21,12 +21,25 @@ pub use log;
 pub use rayon;
 use serde::{de, Deserialize, Deserializer};
 pub use serde_json;
+pub use shaku;
+use shaku::module;
 use std::fmt::Display;
 use std::str::FromStr;
 use std::sync::mpsc::SendError;
 pub use tokio;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
+
+module! {
+    pub EmptyContainer {
+        components = [],
+        providers = [],
+    }
+}
+
+pub fn make_empty_container() -> EmptyContainer {
+    EmptyContainer::builder().build()
+}
 
 pub fn from_str<'de, T, D>(deserializer: D) -> Result<T, D::Error>
 where

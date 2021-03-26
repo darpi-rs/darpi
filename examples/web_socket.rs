@@ -1,24 +1,6 @@
 use darpi::futures::{SinkExt, StreamExt};
-use darpi::header::{HeaderMap, SEC_WEBSOCKET_KEY};
-use darpi::hyper::Uri;
-use darpi::{
-    app, handler, job::FutureJob, response::UpgradeWS, Body, Method, Request, RequestParts,
-    Response, StatusCode,
-};
-use shaku::module;
+use darpi::{app, handler, job::FutureJob, response::UpgradeWS, Body, Method, Request};
 use tokio_tungstenite::{tungstenite::protocol::Role, WebSocketStream};
-
-fn make_container() -> Container {
-    let module = Container::builder().build();
-    module
-}
-
-module! {
-    Container {
-        components = [],
-        providers = [],
-    }
-}
 
 #[handler]
 async fn hello_world(#[request] r: Request<Body>) -> Result<UpgradeWS, String> {
@@ -46,18 +28,10 @@ async fn hello_world(#[request] r: Request<Body>) -> Result<UpgradeWS, String> {
     Ok(resp.unwrap())
 }
 
-//todo fix when container missing
-
-//RUST_LOG=darpi=info cargo test --test job -- --nocapture
-//#[tokio::test]
-#[tokio::test]
+#[tokio::main]
 async fn main() -> Result<(), darpi::Error> {
     app!({
         address: "127.0.0.1:3000",
-        container: {
-            factory: make_container(),
-            type: Container
-        },
         handlers: [{
             route: "/",
             method: Method::GET,
