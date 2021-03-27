@@ -81,9 +81,12 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                 }
                 HandlerArgs::Query(i, ts) => {
                     if !allowed_query {
-                        return Error::new_spanned(arg, "One 1 query type is allowed")
-                            .to_compile_error()
-                            .into();
+                        return Error::new_spanned(
+                            arg,
+                            "Request is already consumed in a previous argument",
+                        )
+                        .to_compile_error()
+                        .into();
                     }
                     consumed = Some(arg.clone());
                     allowed_query = false;
@@ -98,9 +101,12 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                 HandlerArgs::Body(i, ts) => {
                     consumed = Some(arg.clone());
                     if !allowed_body {
-                        return Error::new_spanned(arg, "One 1 body type is allowed")
-                            .to_compile_error()
-                            .into();
+                        return Error::new_spanned(
+                            arg,
+                            "Request is already consumed in a previous argument",
+                        )
+                        .to_compile_error()
+                        .into();
                     }
                     allowed_body = false;
                     last_args.push(ts);
@@ -108,9 +114,12 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                 }
                 HandlerArgs::Path(i, ts) => {
                     if !allowed_path {
-                        return Error::new_spanned(arg, "One 1 body type is allowed")
-                            .to_compile_error()
-                            .into();
+                        return Error::new_spanned(
+                            arg,
+                            "Request is already consumed in a previous argument",
+                        )
+                        .to_compile_error()
+                        .into();
                     }
                     allowed_path = false;
                     make_args.push(ts);
@@ -147,9 +156,12 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
     }
 
     if is_request && consumed.is_some() {
-        return Error::new_spanned(consumed.unwrap(), "Request is consumed by `#[request]`")
-            .to_compile_error()
-            .into();
+        return Error::new_spanned(
+            consumed.unwrap(),
+            "Request is already consumed in a previous argument",
+        )
+        .to_compile_error()
+        .into();
     }
 
     for arg in func.sig.inputs.iter_mut() {

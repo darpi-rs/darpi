@@ -6,7 +6,6 @@ use darpi::{
 use darpi_middleware::{log_request, log_response};
 use env_logger;
 use serde::{Deserialize, Serialize};
-use shaku::module;
 use std::convert::Infallible;
 
 #[derive(Deserialize, Serialize, Debug, Query, Path)]
@@ -111,6 +110,7 @@ pub(crate) async fn roundtrip(
     }
 })]
 async fn do_something(
+    #[request_parts] _rp: &RequestParts,
     // the request query is deserialized into Name
     // if deseriliazation fails, it will result in an error response
     // to make it optional wrap it in an Option<Name>
