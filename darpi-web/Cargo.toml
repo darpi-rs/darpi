@@ -10,7 +10,7 @@ repository = "https://github.com/rust-darpi/darpi.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-darpi-code-gen = "0.1.1-beta.1"
+darpi-code-gen = {path = "../darpi-code-gen"}
 darpi-route = "0.1.0"
 serde_urlencoded = "0.7.0"
 derive_more = "0.99.11"
@@ -31,3 +31,4 @@ tokio = {version = "1.2.0", features = ["full"]}
 tokio-tungstenite = "0.14.0"
 sha1 = "0.6.0"
 base64 = "0.13.0"
+rayon = "1.5.0"

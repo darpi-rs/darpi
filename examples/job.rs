@@ -9,18 +9,6 @@ use serde::{Deserialize, Serialize};
 use shaku::module;
 use std::convert::Infallible;
 
-fn make_container() -> Container {
-    let module = Container::builder().build();
-    module
-}
-
-module! {
-    Container {
-        components = [],
-        providers = [],
-    }
-}
-
 #[derive(Deserialize, Serialize, Debug, Query, Path)]
 pub struct Name {
     name: String,
@@ -78,14 +66,15 @@ async fn first_sync_io_job() -> IOBlockingJob {
 })]
 async fn hello_world(#[request_parts] r: &RequestParts) -> &'static str {
     if r.headers.get("destroy-cpu-header").is_some() {
-        let job = || {
+        CpuJob::from(|| {
             let mut r = 0;
             for _ in 0..10000000 {
                 r += 1;
             }
             println!("first_sync_job1 finished in the background. {}", r)
-        };
-        darpi::spawn(CpuJob::from(job)).await.expect("ohh noes");
+        })
+        .spawn()
+        .expect("ohh noes");
     }
 
     "hello world"
@@ -93,17 +82,16 @@ async fn hello_world(#[request_parts] r: &RequestParts) -> &'static str {
 
 #[handler]
 async fn hello_world1() -> Result<String, String> {
-    let get_secs = move || {
+    let secs = IOBlockingJob::from(move || {
         let secs = 2;
         std::thread::sleep(std::time::Duration::from_secs(secs));
         secs
-    };
-
-    let secs = darpi::oneshot(IOBlockingJob::from(get_secs))
-        .await
-        .map_err(|e| format!("{}", e))?
-        .await
-        .map_err(|e| format!("{}", e))?;
+    })
+    .oneshot()
+    .await
+    .map_err(|e| format!("{}", e))?
+    .await
+    .map_err(|e| format!("{}", e))?;
 
     Ok(format!("waited {} seconds to say hello world", secs))
 }
@@ -118,7 +106,6 @@ pub(crate) async fn roundtrip(
 }
 
 #[handler({
-    container: Container,
     middleware: {
         request: [roundtrip("blah")]
     }
@@ -148,19 +135,12 @@ async fn do_something(
 
 //todo add configuration for the 3 different runtimes so the
 // runtime serving requests doesn't get stomped
-
-//RUST_LOG=darpi=info cargo test --test job -- --nocapture
-//#[tokio::test]
 #[tokio::main]
 async fn main() -> Result<(), darpi::Error> {
     env_logger::builder().is_test(true).try_init().unwrap();
 
     app!({
         address: "127.0.0.1:3000",
-        container: {
-            factory: make_container(),
-            type: Container
-        },
         jobs: {
             request: [],
             response: [first_sync_io_job]
@@ -180,5 +160,5 @@ async fn main() -> Result<(), darpi::Error> {
         }]
     })
     .run()
-    .await //do_something
+    .await
 }

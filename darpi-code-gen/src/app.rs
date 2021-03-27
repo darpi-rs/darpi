@@ -234,19 +234,19 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                 jobs_req.push(quote! {
                     match #name::call(&r, inner_module.clone(), #m_args).await.into() {
                         darpi::job::Job::CpuBound(function) => {
-                                let res = darpi::spawn(function).await;
+                                let res = darpi::spawn(function);
                                 if let Err(e) = res {
                                     log::warn!("could not queue CpuBound job err: {}", e);
                                 }
                             }
                             darpi::job::Job::IOBlocking(function) => {
-                                let res = darpi::spawn(function).await;
+                                let res = darpi::spawn(function);
                                 if let Err(e) = res {
                                     log::warn!("could not queue IOBlocking job err: {}", e);
                                 }
                             }
                             darpi::job::Job::Future(fut) => {
-                                let res = darpi::spawn(fut).await;
+                                let res = darpi::spawn(fut);
                                 if let Err(e) = res {
                                     log::warn!("could not queue Future job err: {}", e);
                                 }
@@ -284,19 +284,19 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                 jobs_res.push(quote! {
                     match #name::call(&rb, inner_module.clone(), #m_args).await.into() {
                         darpi::job::Job::CpuBound(function) => {
-                                let res = darpi::spawn(function).await;
+                                let res = darpi::spawn(function);
                                 if let Err(e) = res {
                                     log::warn!("could not queue CpuBound job err: {}", e);
                                 }
                             }
                             darpi::job::Job::IOBlocking(function) => {
-                                let res = darpi::spawn(function).await;
+                                let res = darpi::spawn(function);
                                 if let Err(e) = res {
                                     log::warn!("could not queue IOBlocking job err: {}", e);
                                 }
                             }
                             darpi::job::Job::Future(fut) => {
-                                let res = darpi::spawn(fut).await;
+                                let res = darpi::spawn(fut);
                                 if let Err(e) = res {
                                     log::warn!("could not queue Future job err: {}", e);
                                 }

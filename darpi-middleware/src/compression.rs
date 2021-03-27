@@ -3,9 +3,7 @@ use async_compression::futures::write::{BrotliEncoder, DeflateEncoder, GzipEncod
 use async_trait::async_trait;
 use darpi::header::{ToStrError, ACCEPT_ENCODING, CONTENT_ENCODING};
 use darpi::hyper::http::HeaderValue;
-use darpi::{
-    middleware, response::ResponderError, Body, Request, RequestParts, Response, StatusCode,
-};
+use darpi::{middleware, response::ResponderError, Body, Request, Response, StatusCode};
 use darpi_headers::{AcceptEncoding, ContentEncoding, EncodingType, Error as ContentEncodingError};
 use derive_more::Display;
 use futures_util::{AsyncReadExt, AsyncWriteExt};

@@ -1,9 +1,12 @@
+use crate::{oneshot, spawn};
 use crate::{Body, Request, Response};
 use async_trait::async_trait;
 use futures::Future;
 use futures_util::FutureExt;
 use std::pin::Pin;
+use std::sync::mpsc::SendError;
 use std::sync::Arc;
+use tokio::sync::oneshot::Receiver;
 
 #[async_trait]
 pub trait RequestJobFactory<C, T = ()>
@@ -58,20 +61,59 @@ pub struct CpuJob<T = ()>(Box<dyn FnOnce() -> T + Send>);
 pub struct IOBlockingJob<T = ()>(Box<dyn FnOnce() -> T + Send>);
 
 impl<T> IOBlockingJob<T> {
+    #[must_use]
     pub fn into_inner(self) -> Box<dyn FnOnce() -> T + Send> {
         self.0
+    }
+    pub async fn oneshot(self) -> Result<Receiver<T>, SendError<Job<T>>>
+    where
+        T: Send + 'static,
+    {
+        oneshot(self).await
+    }
+    pub fn spawn(self) -> Result<(), SendError<Job<T>>>
+    where
+        T: Send + 'static,
+    {
+        spawn(self)
     }
 }
 
 impl<T> CpuJob<T> {
+    #[must_use]
     pub fn into_inner(self) -> Box<dyn FnOnce() -> T + Send> {
         self.0
+    }
+    pub async fn oneshot(self) -> Result<Receiver<T>, SendError<Job<T>>>
+    where
+        T: Send + 'static,
+    {
+        oneshot(self).await
+    }
+    pub fn spawn(self) -> Result<(), SendError<Job<T>>>
+    where
+        T: Send + 'static,
+    {
+        spawn(self)
     }
 }
 
 impl<T> FutureJob<T> {
+    #[must_use]
     pub fn into_inner(self) -> Pin<Box<dyn Future<Output = T> + Send>> {
         self.0
+    }
+    pub async fn oneshot(self) -> Result<Receiver<T>, SendError<Job<T>>>
+    where
+        T: Send + 'static,
+    {
+        oneshot(self).await
+    }
+    pub fn spawn(self) -> Result<(), SendError<Job<T>>>
+    where
+        T: Send + 'static,
+    {
+        spawn(self)
     }
 }
 
