@@ -12,4 +12,6 @@ All feedback is appreciated.
 
 [the darpi book](https://darpi-rs.github.io/book/)
 
+[discord](https://discord.gg/Zn8Tx8gg)
+
 [example app](https://github.com/darpi-rs/example-heroku-darpi)
