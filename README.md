@@ -12,4 +12,4 @@ All feedback is appreciated.
 
 [the darpi book](https://darpi-rs.github.io/book/)
 
-[example app](https://github.com/petar-dambovaliev/example-heroku-darpi)
+[example app](https://github.com/darpi-rs/example-heroku-darpi)
