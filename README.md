@@ -10,6 +10,6 @@ All feedback is appreciated.
 
 ### Resources
 
-[the darpi book](https://darpi-book.herokuapp.com/)
+[the darpi book](https://darpi-rs.github.io/book/)
 
 [example app](https://github.com/petar-dambovaliev/example-heroku-darpi)
