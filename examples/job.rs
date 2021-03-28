@@ -106,6 +106,7 @@ pub(crate) async fn roundtrip(
 
 #[handler({
     middleware: {
+        // here we pass the #[handler] argument to the middleware
         request: [roundtrip("blah")]
     }
 })]
@@ -133,11 +134,9 @@ async fn do_something(
     )
 }
 
-//todo add configuration for the 3 different runtimes so the
-// runtime serving requests doesn't get stomped
 #[tokio::main]
 async fn main() -> Result<(), darpi::Error> {
-    env_logger::builder().is_test(true).try_init().unwrap();
+    env_logger::builder().is_test(true).init();
 
     app!({
         address: "127.0.0.1:3000",
