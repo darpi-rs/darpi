@@ -227,7 +227,6 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
 
                #(#middleware_res )*
                #(#jobs_res )*
-                println!("{:#?}", rb);
                 Ok(rb)
             }
         }
