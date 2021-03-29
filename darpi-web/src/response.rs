@@ -109,6 +109,13 @@ where
     }
 }
 
+impl Responder for Response<Body> {
+    #[inline(always)]
+    fn respond(self) -> Response<Body> {
+        self
+    }
+}
+
 pub trait ResponderError: fmt::Display {
     fn status_code(&self) -> StatusCode {
         StatusCode::INTERNAL_SERVER_ERROR
