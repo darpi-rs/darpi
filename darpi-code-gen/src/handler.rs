@@ -205,7 +205,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
             async fn call(self, mut args: darpi::Args<'a, #module_type>) -> Result<darpi::Response<darpi::Body>, std::convert::Infallible> {
                use darpi::response::Responder;
                #[allow(unused_imports)]
-               use shaku::HasComponent;
+               use darpi::shaku::HasComponent;
                #[allow(unused_imports)]
                use darpi::request::FromQuery;
                use darpi::request::FromRequestBodyWithContainer;
