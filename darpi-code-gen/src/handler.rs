@@ -183,7 +183,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
 
     let func_copy = func.clone();
 
-    let mut a_gen = None;
+    let a_gen;
     let mut a_gen_impl = None;
     let path_where = if !allowed_path {
         a_gen = Some(quote! {A});

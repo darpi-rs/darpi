@@ -145,14 +145,14 @@ async fn do_something(
     // should implement darpi::request::FromRequestBody
     // Common formats like Json, Xml and Yaml are supported out
     // of the box but users can implement their own
-    #[body] payload: Json<Name>,
+    //#[body] payload: Json<Name>,
     // we can access the T from Ok(T) in the middleware result
     #[middleware::request(0)] m_str: String, // returning a String works because darpi has implemented
                                              // the Responder trait for common types
 ) -> String {
     format!(
-        "query: {:#?} path: {:#?} body: {} middleware: {}",
-        query, path, payload.name, m_str
+        "query: {:#?} path: {:#?} middleware: {}",
+        query, path, m_str
     )
 }
 

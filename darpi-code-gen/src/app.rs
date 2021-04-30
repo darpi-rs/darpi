@@ -478,7 +478,7 @@ fn make_route_lit(
             }
         });
 
-        let index = syn::Index::from(*i + 1);
+        let index = syn::Index::from(*i);
         is_match_lines.push(quote! {
             Self::#func_name() != req[#index]
         });
