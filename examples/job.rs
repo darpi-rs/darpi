@@ -6,11 +6,34 @@ use darpi::{
 use darpi_middleware::{log_request, log_response};
 use env_logger;
 use serde::{Deserialize, Serialize};
-use std::convert::Infallible;
+use std::convert::{Infallible, TryFrom, TryInto};
 
-#[derive(Deserialize, Serialize, Debug, Query, Path)]
+#[derive(Deserialize, Serialize, Debug, Query)]
 pub struct Name {
     name: String,
+}
+
+impl std::convert::TryFrom<(String,)> for Name {
+    type Error = String;
+    fn try_from(args: (String,)) -> Result<Self, Self::Error> {
+        let name: String = match std::str::FromStr::from_str(&args.0) {
+            Ok(k) => k,
+            Err(e) => return Err(e.to_string()),
+        };
+        Ok(Self { name })
+    }
+}
+impl darpi::response::ErrResponder<darpi::request::PathError, darpi::Body> for Name {
+    fn respond_err(e: darpi::request::PathError) -> darpi::Response<darpi::Body> {
+        let msg = match e {
+            darpi::request::PathError::Deserialize(msg) => msg,
+            darpi::request::PathError::Missing(msg) => msg,
+        };
+        darpi::Response::builder()
+            .status(darpi::StatusCode::BAD_REQUEST)
+            .body(darpi::Body::from(msg))
+            .expect("this not to happen!")
+    }
 }
 
 #[job_factory(Request)]
@@ -116,7 +139,6 @@ async fn do_something(
     // if deseriliazation fails, it will result in an error response
     // to make it optional wrap it in an Option<Name>
     #[query] query: Name,
-    // the request path is deserialized into Name
     #[path] path: Name,
     // the request body is deserialized into the struct Name
     // it is important to mention that the wrapper around Name
@@ -129,10 +151,12 @@ async fn do_something(
                                              // the Responder trait for common types
 ) -> String {
     format!(
-        "query: {:#?} path: {} body: {} middleware: {}",
-        query, path.name, payload.name, m_str
+        "query: {:#?} path: {:#?} body: {} middleware: {}",
+        query, path, payload.name, m_str
     )
 }
+
+//todo handler should not be able to define path if the route does not have a path variable
 
 #[tokio::main]
 async fn main() -> Result<(), darpi::Error> {
@@ -153,7 +177,7 @@ async fn main() -> Result<(), darpi::Error> {
             method: Method::GET,
             handler: hello_world
         },{
-            route: "/do_something",
+            route: "/do_something/{name}",
             method: Method::GET,
             handler: do_something
         }]

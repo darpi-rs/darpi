@@ -10,8 +10,6 @@ repository = "https://github.com/rust-darpi/darpi.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-darpi-code-gen = {path = "../darpi-code-gen"}
-darpi-route = "0.1.0"
 serde_urlencoded = "0.7.0"
 derive_more = "0.99.11"
 serde = "1.0.118"
@@ -20,7 +18,6 @@ hyper = "0.14.4"
 serde_json = "1.0.60"
 bytes = "1.0.1"
 futures = "0.3.8"
-logos = "0.11.4"
 log = "0.4"
 futures-util = "0.3.8"
 async-trait = "0.1.42"
@@ -28,7 +25,6 @@ serde_yaml = "0.8"
 serde-xml-rs = "0.4.1"
 chrono = "0.4"
 tokio = {version = "1.2.0", features = ["full"]}
-tokio-tungstenite = "0.14.0"
 sha1 = "0.6.0"
 base64 = "0.13.0"
 rayon = "1.5.0"

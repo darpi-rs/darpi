@@ -10,7 +10,7 @@ use syn::parse_quote::ParseQuote;
 
 use syn::{
     braced, bracketed, punctuated::Punctuated, token, Error, Expr as SynExpr, Expr, ExprCall,
-    ExprLit, ExprPath, Ident, LitStr,
+    ExprLit, ExprPath, Ident, LitInt, LitStr,
 };
 
 pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
@@ -29,32 +29,6 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
 
     let handler_len = config.handlers.len();
     let handlers = config.handlers;
-
-    let HandlerTokens {
-        routes,
-        route_arg_assert,
-        route_arg_assert_def,
-        routes_match,
-        is,
-        body_assert,
-        body_assert_def,
-    } = make_handlers(handlers)?;
-
-    let route_possibilities = quote! {
-        use std::convert::TryFrom;
-        #[allow(non_camel_case_types, missing_docs)]
-        pub enum RoutePossibilities {
-            #(#routes ,)*
-        }
-
-        impl RoutePossibilities {
-            pub fn get_route<'a>(&self, route: &'a str, method: &darpi::Method) -> Option<(darpi::ReqRoute<'a>, std::collections::HashMap<&'a str, &'a str>)> {
-                return match self {
-                    #(#is ,)*
-                };
-            }
-        }
-    };
 
     let (module_def, module_let, module_self) = config.container.map_or(
         {
@@ -309,7 +283,41 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         (jobs_req, jobs_res)
     });
 
+    let mut route_names = vec![];
+    let mut route_defs = vec![];
+    for (i, h) in handlers.iter().enumerate() {
+        let id = format_ident!("route{}", i);
+        route_names.push(id.clone());
+
+        let r = make_route_lit(
+            &id,
+            &h.method.path.segments.last().unwrap().ident.to_string(),
+            h.route.to_token_stream(),
+        )?;
+        route_defs.push(r);
+    }
+
+    let HandlerTokens {
+        routes,
+        route_arg_assert,
+        route_arg_assert_def,
+        routes_match,
+        body_assert,
+        body_assert_def,
+    } = make_handlers(middleware_res, jobs_res, route_names, handlers)?;
+
+    let route_possibilities = quote! {
+        #[allow(unused_imports)]
+        use darpi::Route;
+        use std::convert::TryFrom;
+        #[allow(non_camel_case_types, missing_docs)]
+        pub enum RoutePossibilities {
+            #(#routes ,)*
+        }
+    };
+
     let app = quote! {
+        #(#route_defs )*
         #(#body_assert_def )*
         #(#route_arg_assert_def )*
 
@@ -377,40 +385,25 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                             let inner_handlers = std::sync::Arc::clone(&inner_handlers);
 
                             async move {
-                                let route = r.uri().path().to_string();
+                                let route_str = r.uri().path().to_string();
+                                let route: Vec<_> = route_str.split('/').collect();
                                 let method = r.method().clone();
 
                                 #(#middleware_req )*
                                 #(#jobs_req )*
 
-                                let mut handler = None;
                                 for rp in inner_handlers.iter() {
-                                    if let Some(rr) = rp.get_route(&route, &method) {
-                                        handler = Some((rp, rr));
-                                        break;
+                                    match rp {
+                                        #(#routes_match ,)*
                                     }
                                 }
 
-                                let handler = match handler {
-                                    Some(s) => s,
-                                    None => return  async {
-                                         Ok::<_, std::convert::Infallible>(darpi::Response::builder()
-                                                .status(darpi::StatusCode::NOT_FOUND)
-                                                .body(darpi::Body::empty())
-                                                .unwrap())
-                                    }.await,
-                                };
-
-                                let mut rb = match handler.0 {
-                                    #(#routes_match ,)*
-                                };
-
-                                if let Ok(mut rb) = rb.as_mut() {
-                                    #(#middleware_res )*
-                                    #(#jobs_res )*
-                                }
-
-                                rb
+                                return  async {
+                                     Ok::<_, std::convert::Infallible>(darpi::Response::builder()
+                                        .status(darpi::StatusCode::NOT_FOUND)
+                                        .body(darpi::Body::empty())
+                                        .unwrap())
+                                }.await;
                             }
                         }))
                     }
@@ -438,21 +431,122 @@ struct HandlerTokens {
     route_arg_assert: Vec<proc_macro2::TokenStream>,
     route_arg_assert_def: Vec<proc_macro2::TokenStream>,
     routes_match: Vec<proc_macro2::TokenStream>,
-    is: Vec<proc_macro2::TokenStream>,
     body_assert: Vec<proc_macro2::TokenStream>,
     body_assert_def: Vec<proc_macro2::TokenStream>,
 }
 
-fn make_handlers(handlers: Punctuated<Handler, token::Comma>) -> Result<HandlerTokens, SynError> {
-    let mut is = vec![];
-    let mut routes = vec![];
+fn make_route_lit(
+    struct_ident: &Ident,
+    method_type: &str,
+    r: proc_macro2::TokenStream,
+) -> Result<proc_macro2::TokenStream, syn::Error> {
+    let r_str = r.to_token_stream().to_string();
+    let mut parts = vec![];
+    let mut args = vec![];
+    for (i, part) in r_str.split('/').enumerate() {
+        let part = part.trim_end_matches('"');
+        let starts = part.starts_with('{');
+        let ends = part.ends_with('}');
+        if starts ^ ends {
+            return Err(Error::new_spanned(
+                r,
+                "route arguments must start with `{` and end with `}`",
+            ));
+        }
+
+        if starts && ends {
+            args.push((i, part.to_string()));
+        } else {
+            parts.push((i, part.to_string()));
+        }
+    }
+
+    let mut methods = vec![];
+
+    let mut is_match_lines = vec![];
+    let method_str_lit = LitStr::new(method_type, Span::call_site());
+    is_match_lines.push(quote! {req.len() != Self::len()});
+    is_match_lines.push(quote! {#method_str_lit != method });
+
+    for (i, part) in parts.iter() {
+        let route_lit = LitStr::new(part, Span::call_site());
+        let func_name = format_ident!("p{}", i);
+        methods.push(quote! {
+            #[inline(always)]
+            const fn #func_name() -> &'static str {
+                return #route_lit;
+            }
+        });
+
+        let index = syn::Index::from(*i + 1);
+        is_match_lines.push(quote! {
+            Self::#func_name() != req[#index]
+        });
+    }
+
+    let mut prop_values = HashMap::new();
+
+    for (i, prop) in args.iter() {
+        let prop_name = format_ident!("arg{}", i);
+        prop_values.insert((prop_name.clone(), i), prop);
+    }
+
+    let mut tuple_type = vec![];
+    let mut get_args_lines = vec![];
+    for ((name, index), sorter) in prop_values {
+        let i = syn::Index::from(*index);
+        get_args_lines.push((quote! {r[#i].to_string()}, sorter));
+        tuple_type.push(quote! {String});
+    }
+
+    get_args_lines.sort_by(|a, b| a.1.cmp(b.1));
+
+    let sorted_get_args_lines: Vec<proc_macro2::TokenStream> =
+        get_args_lines.iter().map(|a| a.0.clone()).collect();
+    let i = LitInt::new(&format!("{}", parts.len() + args.len()), Span::call_site());
+
+    Ok(quote! {
+        struct #struct_ident;
+
+        impl #struct_ident {
+            #(#methods )*
+        }
+
+        impl darpi_route::Route<(#(#tuple_type ,)*)> for #struct_ident {
+            #[inline(always)]
+            fn is_match(req: &Vec<&str>, method: &str) -> bool {
+                !(#(#is_match_lines )||*)
+            }
+
+            #[inline(always)]
+            fn get_tuple_args(r: &Vec<&str>) -> (#(#tuple_type ,)*) {
+                (#(#sorted_get_args_lines ,)*)
+            }
+
+            #[inline(always)]
+            fn len() -> usize {
+                return #i;
+            }
+        }
+    })
+}
+
+fn make_handlers(
+    middleware_res: Vec<proc_macro2::TokenStream>,
+    jobs_res: Vec<proc_macro2::TokenStream>,
+    defined_routes: Vec<Ident>,
+    handlers: Punctuated<Handler, token::Comma>,
+) -> Result<HandlerTokens, SynError> {
+    assert_eq!(defined_routes.len(), handlers.len());
+
     let mut routes_match = vec![];
+    let mut routes = vec![];
     let body_assert = vec![];
     let body_assert_def = vec![];
     let route_arg_assert = vec![];
     let route_arg_assert_def = vec![];
 
-    for el in handlers.iter() {
+    for (i, el) in handlers.iter().enumerate() {
         let handler = el
             .handler
             .path
@@ -506,15 +600,20 @@ fn make_handlers(handlers: Punctuated<Handler, token::Comma>) -> Result<HandlerT
             // });
         }
 
-        is.push(quote! {
+        let r = &defined_routes[i];
+        routes_match.push(quote! {
             RoutePossibilities::#variant_name => {
-                let req_route = darpi::ReqRoute::try_from(route).unwrap();
-                let def_route = darpi::Route::try_from(#route).unwrap();
-                if def_route == req_route && method == #method.as_str() {
-                    let args = req_route.extract_args(&def_route).unwrap();
-                    return Some((req_route, args));
+                if #r::is_match(&route, method.as_str()) {
+                    let args = darpi::Args{
+                        request: r,
+                        container: inner_module.clone(),
+                        route_args: #r::get_tuple_args(&route),
+                    };
+                    let mut rb = Handler::call(#variant_value, args).await.unwrap();
+                    #(#middleware_res )*
+                    #(#jobs_res )*
+                    return Ok::<_, std::convert::Infallible>(rb);
                 }
-                None
             }
         });
 
@@ -525,17 +624,6 @@ fn make_handlers(handlers: Punctuated<Handler, token::Comma>) -> Result<HandlerT
             },
             route_str,
         ));
-
-        routes_match.push(quote! {
-            RoutePossibilities::#variant_name => {
-                let args = darpi::Args{
-                    request: r,
-                    container: inner_module.clone(),
-                    route_args: handler.1.1,
-                };
-                Handler::call(#variant_value, args).await
-            }
-        });
     }
 
     routes.sort_by(|left, right| {
@@ -568,7 +656,6 @@ fn make_handlers(handlers: Punctuated<Handler, token::Comma>) -> Result<HandlerT
         route_arg_assert,
         route_arg_assert_def,
         routes_match,
-        is,
         body_assert,
         body_assert_def,
     })

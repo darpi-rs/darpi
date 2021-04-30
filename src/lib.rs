@@ -11,7 +11,7 @@ pub use darpi_web::{
 
 pub use async_trait::async_trait;
 pub use chrono;
-pub use darpi_route::{ReqRoute, Route};
+pub use darpi_route::Route;
 pub use futures;
 pub use http::{header, request::Parts as RequestParts, Method, StatusCode};
 pub use hyper::upgrade;
