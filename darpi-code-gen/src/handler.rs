@@ -48,7 +48,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
 
     if let Some(m) = container {
         dummy_t = Default::default();
-        module_type = m.to_token_stream();
+        module_type = quote! {#m ,};
     }
 
     let mut i = 0_u32;
@@ -188,14 +188,14 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
     let path_where = if !allowed_path {
         a_gen = Some(quote! {A});
         a_gen_impl = Some(quote! {A});
-        quote! {A: 'static + Send + Sync, #path_ident: std::convert::TryFrom<A>, <#path_ident as TryFrom<A>>::Error: ToString}
+        quote! {A: 'static + Send + Sync, #path_ident: std::convert::TryFrom<A>, <#path_ident as std::convert::TryFrom<A>>::Error: ToString}
     } else {
         a_gen = Some(quote! {()});
         quote! {}
     };
 
     let dummy_where = if dummy_t.is_empty() {
-        quote! {#path_where}
+        quote! {where #path_where}
     } else {
         quote! { where T: 'static + Send + Sync, #path_where}
     };

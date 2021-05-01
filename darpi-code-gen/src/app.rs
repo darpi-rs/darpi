@@ -325,10 +325,16 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
             #module_def
             handlers: std::sync::Arc<[RoutePossibilities; #handler_len]>,
             address: std::net::SocketAddr,
+            rx: tokio::sync::oneshot::Receiver<()>,
+            tx: Option<tokio::sync::oneshot::Sender<()>>
         }
 
         impl App {
+            pub fn shutdown_signal(&mut self) -> Option<tokio::sync::oneshot::Sender<()>> {
+                self.tx.take()
+            }
             pub fn new(address: &str) -> Self {
+                let (tx, rx) = tokio::sync::oneshot::channel::<()>();
                 #(#body_assert;)*
                 #(#route_arg_assert;)*
                 let address: std::net::SocketAddr = address
@@ -340,6 +346,8 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                     #module_self
                     handlers: std::sync::Arc::new([#(RoutePossibilities::#routes ,)*]),
                     address: address,
+                    rx: rx,
+                    tx: Some(tx)
                 }
             }
 
@@ -410,7 +418,8 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                 });
 
                 let server = darpi::Server::bind(&address).serve(make_svc);
-                server.await
+                let graceful = server.with_graceful_shutdown(async { self.rx.await.ok(); });
+                graceful.await
              }
         }
     };
@@ -493,7 +502,7 @@ fn make_route_lit(
 
     let mut tuple_type = vec![];
     let mut get_args_lines = vec![];
-    for ((name, index), sorter) in prop_values {
+    for ((_, index), sorter) in prop_values {
         let i = syn::Index::from(*index);
         get_args_lines.push((quote! {r[#i].to_string()}, sorter));
         tuple_type.push(quote! {String});

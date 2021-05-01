@@ -1,39 +1,17 @@
 use darpi::job::{CpuJob, FutureJob, IOBlockingJob};
 use darpi::{
-    app, handler, job_factory, logger::DefaultFormat, middleware, Body, Json, Method, Path, Query,
-    Request, RequestParts, Response,
+    app, handler, job_factory, logger::DefaultFormat, middleware, Body, Path, Query, Request,
+    RequestParts, Response,
 };
 use darpi_middleware::{log_request, log_response};
 use env_logger;
 use serde::{Deserialize, Serialize};
-use std::convert::{Infallible, TryFrom, TryInto};
+use std::convert::Infallible;
+use tokio::time::Duration;
 
-#[derive(Deserialize, Serialize, Debug, Query)]
+#[derive(Deserialize, Serialize, Debug, Query, Path)]
 pub struct Name {
     name: String,
-}
-
-impl std::convert::TryFrom<(String,)> for Name {
-    type Error = String;
-    fn try_from(args: (String,)) -> Result<Self, Self::Error> {
-        let name: String = match std::str::FromStr::from_str(&args.0) {
-            Ok(k) => k,
-            Err(e) => return Err(e.to_string()),
-        };
-        Ok(Self { name })
-    }
-}
-impl darpi::response::ErrResponder<darpi::request::PathError, darpi::Body> for Name {
-    fn respond_err(e: darpi::request::PathError) -> darpi::Response<darpi::Body> {
-        let msg = match e {
-            darpi::request::PathError::Deserialize(msg) => msg,
-            darpi::request::PathError::Missing(msg) => msg,
-        };
-        darpi::Response::builder()
-            .status(darpi::StatusCode::BAD_REQUEST)
-            .body(darpi::Body::from(msg))
-            .expect("this not to happen!")
-    }
 }
 
 #[job_factory(Request)]
@@ -129,31 +107,15 @@ pub(crate) async fn roundtrip(
 
 #[handler({
     middleware: {
-        // here we pass the #[handler] argument to the middleware
         request: [roundtrip("blah")]
     }
 })]
 async fn do_something(
     #[request_parts] _rp: &RequestParts,
-    // the request query is deserialized into Name
-    // if deseriliazation fails, it will result in an error response
-    // to make it optional wrap it in an Option<Name>
-    #[query] query: Name,
     #[path] path: Name,
-    // the request body is deserialized into the struct Name
-    // it is important to mention that the wrapper around Name
-    // should implement darpi::request::FromRequestBody
-    // Common formats like Json, Xml and Yaml are supported out
-    // of the box but users can implement their own
-    //#[body] payload: Json<Name>,
-    // we can access the T from Ok(T) in the middleware result
-    #[middleware::request(0)] m_str: String, // returning a String works because darpi has implemented
-                                             // the Responder trait for common types
+    #[middleware::request(0)] m_str: String,
 ) -> String {
-    format!(
-        "query: {:#?} path: {:#?} middleware: {}",
-        query, path, m_str
-    )
+    format!("path: {:#?} middleware: {}", path, m_str)
 }
 
 //todo handler should not be able to define path if the route does not have a path variable
@@ -162,7 +124,7 @@ async fn do_something(
 async fn main() -> Result<(), darpi::Error> {
     env_logger::builder().is_test(true).init();
 
-    app!({
+    let mut app = app!({
         address: "127.0.0.1:3000",
         jobs: {
             request: [],
@@ -181,7 +143,14 @@ async fn main() -> Result<(), darpi::Error> {
             method: Method::GET,
             handler: do_something
         }]
-    })
-    .run()
-    .await
+    });
+
+    let shutdown = app.shutdown_signal().unwrap();
+
+    tokio::task::spawn(async {
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        shutdown.send(()).unwrap();
+    });
+
+    app.run().await
 }
