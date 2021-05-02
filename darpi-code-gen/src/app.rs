@@ -326,10 +326,20 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
             handlers: std::sync::Arc<[RoutePossibilities; #handler_len]>,
             address: std::net::SocketAddr,
             rx: tokio::sync::oneshot::Receiver<()>,
-            tx: Option<tokio::sync::oneshot::Sender<()>>
+            tx: Option<tokio::sync::oneshot::Sender<()>>,
+            start_rx: Option<tokio::sync::oneshot::Receiver<()>>,
+            start_tx: Option<tokio::sync::oneshot::Sender<()>>
         }
 
         impl App {
+            pub fn startup_notify(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+                if let Some(_) = self.start_tx {
+                    return None;
+                }
+                let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+                self.start_tx = Some(tx);
+                Some(rx)
+            }
             pub fn shutdown_signal(&mut self) -> Option<tokio::sync::oneshot::Sender<()>> {
                 self.tx.take()
             }
@@ -347,7 +357,9 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                     handlers: std::sync::Arc::new([#(RoutePossibilities::#routes ,)*]),
                     address: address,
                     rx: rx,
-                    tx: Some(tx)
+                    tx: Some(tx),
+                    start_rx: None,
+                    start_tx: None,
                 }
             }
 
@@ -355,6 +367,8 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                 let address = self.address;
                 let module = self.module.clone();
                 let handlers = self.handlers.clone();
+                let start_tx = self.start_tx;
+                let rx = self.rx;
 
                 let default_hook = std::panic::take_hook();
                 std::panic::set_hook(Box::new(move |panic| {
@@ -418,7 +432,10 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                 });
 
                 let server = darpi::Server::bind(&address).serve(make_svc);
-                let graceful = server.with_graceful_shutdown(async { self.rx.await.ok(); });
+                let graceful = server.with_graceful_shutdown(async { rx.await.ok(); });
+                if let Some(start) = start_tx {
+                    let _ = start.send(());
+                }
                 graceful.await
              }
         }
