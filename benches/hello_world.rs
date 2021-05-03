@@ -1,14 +1,12 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use darpi::tokio::runtime::Runtime;
 use darpi::{app, handler};
 use env_logger;
 use futures::Future;
 use tokio::sync::oneshot::{Receiver, Sender};
 
 fn hello_world(c: &mut Criterion) {
-    let (shutdown, startup, app) = make_server();
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.spawn(app);
-    runtime.block_on(startup).unwrap();
+    let (shutdown, runtime) = setup();
 
     c.bench_function("hello world", |b| {
         b.to_async(&runtime)
@@ -41,10 +39,13 @@ fn make_server() -> (Sender<()>, Receiver<()>, impl Future<Output = ()>) {
     })
 }
 
-// fn setup() -> Sender<()> {
-//
-//     shutdown
-// }
+fn setup() -> (Sender<()>, Runtime) {
+    let (shutdown, startup, app) = make_server();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.spawn(app);
+    runtime.block_on(startup).unwrap();
+    (shutdown, runtime)
+}
 
 criterion_group!(benches, hello_world);
 criterion_main!(benches);

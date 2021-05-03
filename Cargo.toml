@@ -55,7 +55,12 @@ tokio-tungstenite = "0.14.0"
 criterion = {version = "0.3", features = ["async_tokio"]}
 regex = "1.4.5"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
+rand = "0.8.3"
 
 [[bench]]
 name = "hello_world"
+harness = false
+
+[[bench]]
+name = "echo"
 harness = false

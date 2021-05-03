@@ -317,6 +317,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
     };
 
     let app = quote! {
+        static __ONCE_INTERNAL__: std::sync::Once = std::sync::Once::new();
         #(#route_defs )*
         #(#body_assert_def )*
         #(#route_arg_assert_def )*
@@ -376,7 +377,8 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                     default_hook(panic);
                 }));
 
-                darpi::rayon::ThreadPoolBuilder::new()
+                __ONCE_INTERNAL__.call_once(|| {
+                    darpi::rayon::ThreadPoolBuilder::new()
                     .panic_handler(|panic| {
                         let msg = match panic.downcast_ref::<&'static str>() {
                             Some(s) => *s,
@@ -388,6 +390,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                         darpi::log::warn!("panic reason:  `{}`", msg);
                     })
                     .build_global().unwrap();
+                });
 
                 let make_svc = darpi::service::make_service_fn(move |_conn| {
                     let inner_module = std::sync::Arc::clone(&module);
@@ -1039,6 +1042,28 @@ impl Parse for Handler {
             Some(r) => r,
             None => return Err(SynError::new(brace.span, "missing `method`")),
         };
+
+        let methods = vec![
+            http::Method::GET.to_string(),
+            http::Method::POST.to_string(),
+            http::Method::PUT.to_string(),
+            http::Method::DELETE.to_string(),
+            http::Method::HEAD.to_string(),
+            http::Method::OPTIONS.to_string(),
+            http::Method::CONNECT.to_string(),
+            http::Method::PATCH.to_string(),
+            http::Method::TRACE.to_string(),
+        ];
+        let method_str = method.to_token_stream().to_string();
+        if !methods.contains(&method_str) {
+            return Err(SynError::new_spanned(
+                method,
+                format!(
+                    "Invalid method `{}`. Available methods {:#?}",
+                    method_str, methods
+                ),
+            ));
+        }
 
         let handler = match handler {
             Some(r) => r,

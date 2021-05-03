@@ -1,5 +1,5 @@
 use darpi::futures::{SinkExt, StreamExt};
-use darpi::{app, handler, job::FutureJob, response::UpgradeWS, Body, Method, Request};
+use darpi::{app, handler, job::FutureJob, response::UpgradeWS, Body, Request};
 use tokio_tungstenite::{tungstenite::protocol::Role, WebSocketStream};
 
 #[handler]
@@ -44,7 +44,7 @@ async fn main() -> Result<(), darpi::Error> {
         address: "127.0.0.1:3000",
         handlers: [{
             route: "/",
-            method: Method::GET,
+            method: GET,
             handler: hello_world
         }]
     })
