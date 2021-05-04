@@ -7,7 +7,6 @@ use darpi_middleware::{log_request, log_response};
 use env_logger;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
-use tokio::time::Duration;
 
 #[derive(Deserialize, Serialize, Debug, Query, Path)]
 pub struct Name {
@@ -124,7 +123,7 @@ async fn do_something(
 async fn main() -> Result<(), darpi::Error> {
     env_logger::builder().is_test(true).init();
 
-    let mut app = app!({
+    app!({
         address: "127.0.0.1:3000",
         jobs: {
             request: [],
@@ -136,21 +135,14 @@ async fn main() -> Result<(), darpi::Error> {
         },
         handlers: [{
             route: "/hello_world",
-            method: Method::GET,
+            method: GET,
             handler: hello_world
         },{
             route: "/do_something/{name}",
-            method: Method::GET,
+            method: GET,
             handler: do_something
         }]
-    });
-
-    let shutdown = app.shutdown_signal().unwrap();
-
-    tokio::task::spawn(async {
-        tokio::time::sleep(Duration::from_secs(3)).await;
-        shutdown.send(()).unwrap();
-    });
-
-    app.run().await
+    })
+    .run()
+    .await
 }

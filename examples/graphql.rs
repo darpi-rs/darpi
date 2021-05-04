@@ -1,7 +1,7 @@
 use async_graphql::connection::{query, Connection, Edge, EmptyFields};
 use async_graphql::{Context, Enum, Interface, Object};
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
-use darpi::{app, handler, logger::DefaultFormat, Method, Path};
+use darpi::{app, handler, logger::DefaultFormat, Path};
 use darpi_graphql::{GraphQLBody, MultipartOptionsProviderImpl, Request, Response};
 use darpi_middleware::{body_size_limit, log_request, log_response};
 use env_logger;
@@ -481,11 +481,11 @@ async fn main() -> Result<(), darpi::Error> {
         },
         handlers: [{
             route: "/",
-            method: Method::GET,
+            method: GET,
             handler: index_get
         },{
             route: "/",
-            method: Method::POST,
+            method: POST,
             handler: index_post
         }]
     })
