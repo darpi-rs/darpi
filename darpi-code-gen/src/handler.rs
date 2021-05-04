@@ -31,8 +31,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
     let has_no_path_args = format_ident!("{}_{}", HAS_NO_PATH_ARGS_PREFIX, func_name);
     let mut map = HashMap::new();
     let mut max_middleware_index = None;
-    let mut dummy_t = quote! {,T};
-    let mut module_type = quote! {T};
+    let mut dummy_t = quote! {T,};
+    let mut module_type = quote! {T,};
 
     let args = if args.is_empty() {
         None
@@ -48,7 +48,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
 
     if let Some(m) = container {
         dummy_t = Default::default();
-        module_type = m.to_token_stream();
+        module_type = quote! {#m ,};
     }
 
     let mut i = 0_u32;
@@ -58,6 +58,7 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
     let mut is_request = false;
     let mut consumed = None;
     let mut last_args = vec![];
+    let mut path_ident = None;
 
     for arg in func.sig.inputs.iter() {
         if let FnArg::Typed(tp) = arg {
@@ -121,6 +122,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
                         .to_compile_error()
                         .into();
                     }
+
+                    path_ident = Some(tp.ty.clone());
                     allowed_path = false;
                     make_args.push(ts);
                     give_args.push(quote! {#i});
@@ -180,10 +183,21 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
 
     let func_copy = func.clone();
 
-    let dummy_where = if dummy_t.is_empty() {
-        quote! {}
+    let a_gen;
+    let mut a_gen_impl = None;
+    let path_where = if !allowed_path {
+        a_gen = Some(quote! {A});
+        a_gen_impl = Some(quote! {A});
+        quote! {A: 'static + Send + Sync, #path_ident: std::convert::TryFrom<A>, <#path_ident as std::convert::TryFrom<A>>::Error: ToString}
     } else {
-        quote! { where T: 'static + Send + Sync}
+        a_gen = Some(quote! {()});
+        quote! {}
+    };
+
+    let dummy_where = if dummy_t.is_empty() {
+        quote! {where #path_where}
+    } else {
+        quote! { where T: 'static + Send + Sync, #path_where}
     };
 
     let jobs_req = job_call.req;
@@ -201,8 +215,8 @@ pub(crate) fn make_handler(args: TokenStream, input: TokenStream) -> TokenStream
         }
 
         #[darpi::async_trait]
-        impl<'a #dummy_t> darpi::Handler<'a, #module_type> for #func_name #dummy_where {
-            async fn call(self, mut args: darpi::Args<'a, #module_type>) -> Result<darpi::Response<darpi::Body>, std::convert::Infallible> {
+        impl<#dummy_t #a_gen_impl> darpi::Handler<#module_type #a_gen> for #func_name #dummy_where {
+            async fn call(self, mut args: darpi::Args<#module_type #a_gen>) -> Result<darpi::Response<darpi::Body>, std::convert::Infallible> {
                use darpi::response::Responder;
                #[allow(unused_imports)]
                use darpi::shaku::HasComponent;

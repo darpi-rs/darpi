@@ -1,7 +1,6 @@
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, Error, Fields, ItemStruct, LitStr};
+use syn::{parse_macro_input, Error, Fields, ItemStruct};
 
 pub(crate) fn make_path_type(input: TokenStream) -> TokenStream {
     let mut struct_arg = parse_macro_input!(input as ItemStruct);
@@ -16,24 +15,14 @@ pub(crate) fn make_path_type(input: TokenStream) -> TokenStream {
 
         let mut fields_create = vec![];
         let mut fields = vec![];
+        let mut strings = vec![];
+
+        let mut i = 0;
+        let mut sorted_fields = Vec::with_capacity(named.named.len());
 
         for field in named.named.iter() {
             if let Some(name) = &field.ident {
-                let name_str = LitStr::new(&name.to_string(), Span::call_site());
-                let ttype = &field.ty;
-                let q = quote! {
-                    let #name = match args.get(#name_str) {
-                        Some(n) => *n,
-                        None => return Err(darpi::request::PathError::Missing(#name_str.into()))
-                    };
-
-                    let #name: #ttype = match std::str::FromStr::from_str(#name) {
-                        Ok(k) => k,
-                        Err(e) => return Err(darpi::request::PathError::Deserialize(e.to_string()))
-                    };
-                };
-                fields_create.push(q);
-                fields.push(name.to_token_stream());
+                sorted_fields.push((name.clone(), field.ty.clone()));
                 continue;
             }
 
@@ -42,11 +31,30 @@ pub(crate) fn make_path_type(input: TokenStream) -> TokenStream {
                 .into();
         }
 
+        sorted_fields.sort_by(|a, b| a.0.cmp(&b.0));
+
+        for field in sorted_fields {
+            let name = field.0;
+            let ttype = &field.1;
+            let index = syn::Index::from(i);
+            let q = quote! {
+                let #name: #ttype = match std::str::FromStr::from_str(&args.#index) {
+                    Ok(k) => k,
+                    Err(e) => return Err(darpi::request::PathError::Deserialize(e.to_string()))
+                };
+            };
+
+            fields_create.push(q);
+            fields.push(name.to_token_stream());
+            strings.push(quote! {String});
+            i += 1;
+        }
+
         let tokens = quote! {
-            impl<'a> std::convert::TryFrom<std::collections::HashMap<&'a str, &'a str>> for #name {
+            impl std::convert::TryFrom<(#(#strings ,)*)> for #name {
                 type Error = darpi::request::PathError;
 
-                fn try_from(args: std::collections::HashMap<&'a str, &'a str, std::collections::hash_map::RandomState>) -> Result<Self, Self::Error> {
+                fn try_from(args: (#(#strings ,)*)) -> Result<Self, Self::Error> {
                     #(#fields_create)*
                     Ok(Self{#(#fields ,)*})
                 }
