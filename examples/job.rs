@@ -56,8 +56,6 @@ async fn first_sync_io_job() -> IOBlockingJob {
     job.into()
 }
 
-// todo make sure Request is passed by value
-// show a nice error
 #[handler({
     jobs: {
         response: [first_sync_job, first_sync_job1]
@@ -116,8 +114,6 @@ async fn do_something(
 ) -> String {
     format!("path: {:#?} middleware: {}", path, m_str)
 }
-
-//todo handler should not be able to define path if the route does not have a path variable
 
 #[tokio::main]
 async fn main() -> Result<(), darpi::Error> {

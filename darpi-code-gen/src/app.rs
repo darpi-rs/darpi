@@ -1,4 +1,3 @@
-//use crate::handler::{HAS_NO_PATH_ARGS_PREFIX, HAS_PATH_ARGS_PREFIX, NO_BODY_PREFIX};
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::ToTokens;
@@ -109,13 +108,11 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                             let m_args: Vec<proc_macro2::TokenStream> = expr_call.args.iter_mut().map(|arg| {
                                 if let SynExpr::Call(expr_call) = arg {
                                     if expr_call.func.to_token_stream().to_string() == "request" {
-                                        //todo remove unwrap and handle errors
                                         let index: u16 = expr_call.args.first().unwrap().to_token_stream().to_string().parse().unwrap();
                                         let i_ident = format_ident!("m_arg_{}", index);
                                         return quote!{#i_ident.clone()};
                                     }
                                     if expr_call.func.to_token_stream().to_string() == "response" {
-                                        //todo use index to get the correct result
                                         let index: u16 = expr_call.args.first().unwrap().to_token_stream().to_string().parse().unwrap();
                                         let r_m_arg_ident = format_ident!("res_m_arg_{}", index);
                                         return quote!{#r_m_arg_ident.clone()};
@@ -130,7 +127,6 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                                                 return quote!{#i_ident.clone()};
                                             }
                                             if expr_call.func.to_token_stream().to_string() == "response" {
-                                                //todo use index to get the correct result
                                                 let index: u16 = expr_call.args.first().unwrap().to_token_stream().to_string().parse().unwrap();
                                                 let r_m_arg_ident = format_ident!("res_m_arg_{}", index);
                                                 return quote!{#r_m_arg_ident.clone()};
@@ -605,30 +601,6 @@ fn make_handlers(
             .get_ident()
             .expect("cannot get handler path ident");
 
-        let method_name = el.method.path.segments.last().unwrap();
-        // let mut f_name = format_ident!("assert_has_no_path_args_{}", variant_value);
-        // let mut t_name = format_ident!("{}_{}", HAS_NO_PATH_ARGS_PREFIX, variant_value);
-
-        if route.clone().to_token_stream().to_string().contains('{') {
-            // f_name = format_ident!("assert_has_path_args_{}", variant_value);
-            // t_name = format_ident!("{}_{}", HAS_PATH_ARGS_PREFIX, variant_value);
-        }
-
-        //todo fix use the handler path
-        //route_arg_assert_def.push(quote! {fn #f_name<T>() where T: #t_name {}});
-        // route_arg_assert.push(quote! {
-        //     #f_name::<#variant_value>();
-        // });
-
-        if method_name.ident == "GET" {
-            // let f_name = format_ident!("assert_no_body_{}", variant_value);
-            // let t_name = format_ident!("{}_{}", NO_BODY_PREFIX, variant_value);
-            // body_assert_def.push(quote! {fn #f_name<T>() where T: #t_name {}});
-            // body_assert.push(quote! {
-            //     #f_name::<#variant_value>();
-            // });
-        }
-
         let r = &defined_routes[i];
         routes_match.push(quote! {
             RoutePossibilities::#variant_name => {
@@ -695,15 +667,6 @@ pub(crate) enum Address {
     Lit(LitStr),
     Ident(Ident),
 }
-
-// impl ToTokens for Address {
-//     fn to_tokens(&self, tokens: &mut TokenStream) {
-//         match self {
-//             Self::Lit(lit) => lit.to_token_stream().to_tokens(tokens),
-//             Self::Ident(id) => id.to_tokens(tokens),
-//         }
-//     }
-// }
 
 impl Parse for Address {
     fn parse(input: ParseStream) -> SynResult<Self> {
