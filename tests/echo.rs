@@ -1,5 +1,5 @@
 use darpi::header::CONTENT_TYPE;
-use darpi::{app, handler, Path, Query, StatusCode};
+use darpi::{app, handler, App, Path, Query, StatusCode};
 use env_logger;
 use futures::Future;
 use rand::Rng;

@@ -1,6 +1,6 @@
 use darpi::futures::{SinkExt, StreamExt};
 use darpi::upgrade::Upgraded;
-use darpi::{app, handler, job::FutureJob, response::UpgradeWS, Body, Request};
+use darpi::{app, handler, job::FutureJob, response::UpgradeWS, App, Body, Request};
 use futures::Future;
 use rand::Rng;
 use std::sync::Once;

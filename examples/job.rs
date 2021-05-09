@@ -1,6 +1,6 @@
 use darpi::job::{CpuJob, FutureJob, IOBlockingJob};
 use darpi::{
-    app, handler, job_factory, logger::DefaultFormat, middleware, Body, Path, Query, Request,
+    app, handler, job_factory, logger::DefaultFormat, middleware, App, Body, Path, Query, Request,
     RequestParts, Response,
 };
 use darpi_middleware::{log_request, log_response};

@@ -1,5 +1,5 @@
 use darpi::header::CONTENT_TYPE;
-use darpi::{app, handler, StatusCode};
+use darpi::{app, handler, App, StatusCode};
 use env_logger;
 use futures::Future;
 use tokio::sync::oneshot::{Receiver, Sender};

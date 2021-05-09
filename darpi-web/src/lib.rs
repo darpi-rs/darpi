@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+use async_trait::async_trait;
 pub use hyper::{body::HttpBody, Body, Request, Response, StatusCode};
 use job::Job;
 pub use json::Json;
@@ -18,6 +19,13 @@ pub mod response;
 pub mod ws;
 pub mod xml;
 pub mod yaml;
+
+#[async_trait]
+pub trait App {
+    async fn run(self) -> Result<(), hyper::Error>;
+    fn shutdown_signal(&mut self) -> Option<tokio::sync::oneshot::Sender<()>>;
+    fn startup_notify(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>>;
+}
 
 pub async fn oneshot<T>(job: impl Into<Job<T>>) -> Result<Receiver<T>, SendError<Job<T>>>
 where

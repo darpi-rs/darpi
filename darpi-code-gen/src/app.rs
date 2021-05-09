@@ -318,7 +318,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         #(#body_assert_def )*
         #(#route_arg_assert_def )*
 
-         pub struct App {
+         pub struct AppImpl {
             #module_def
             handlers: std::sync::Arc<[RoutePossibilities; #handler_len]>,
             address: std::net::SocketAddr,
@@ -328,19 +328,8 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
             start_tx: Option<tokio::sync::oneshot::Sender<()>>
         }
 
-        impl App {
-            pub fn startup_notify(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
-                if let Some(_) = self.start_tx {
-                    return None;
-                }
-                let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-                self.start_tx = Some(tx);
-                Some(rx)
-            }
-            pub fn shutdown_signal(&mut self) -> Option<tokio::sync::oneshot::Sender<()>> {
-                self.tx.take()
-            }
-            pub fn new(address: &str) -> Self {
+        impl AppImpl {
+            fn new(address: &str) -> Self {
                 let (tx, rx) = tokio::sync::oneshot::channel::<()>();
                 #(#body_assert;)*
                 #(#route_arg_assert;)*
@@ -359,8 +348,24 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                     start_tx: None,
                 }
             }
+        }
 
-             pub async fn run(self) -> Result<(), darpi::Error> {
+        #[darpi::async_trait]
+        impl darpi::App for AppImpl {
+            fn startup_notify(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+                if let Some(_) = self.start_tx {
+                    return None;
+                }
+                let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+                self.start_tx = Some(tx);
+                Some(rx)
+            }
+
+            fn shutdown_signal(&mut self) -> Option<tokio::sync::oneshot::Sender<()>> {
+                self.tx.take()
+            }
+
+             async fn run(self) -> Result<(), darpi::Error> {
                 let address = self.address;
                 let module = self.module.clone();
                 let handlers = self.handlers.clone();
@@ -444,7 +449,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         {
             #route_possibilities
             #app
-            App::new(#address_value)
+            AppImpl::new(#address_value)
         }
     };
     //panic!("{}", tokens.to_string());

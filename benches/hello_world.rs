@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use darpi::tokio::runtime::Runtime;
-use darpi::{app, handler};
+use darpi::{app, handler, App};
 use env_logger;
 use futures::Future;
 use tokio::sync::oneshot::{Receiver, Sender};

@@ -1,5 +1,5 @@
 use darpi::futures::{SinkExt, StreamExt};
-use darpi::{app, handler, job::FutureJob, response::UpgradeWS, Body, Request};
+use darpi::{app, handler, job::FutureJob, response::UpgradeWS, App, Body, Request};
 use tokio_tungstenite::{tungstenite::protocol::Role, WebSocketStream};
 
 #[handler]

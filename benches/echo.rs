@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use darpi::tokio::runtime::Runtime;
-use darpi::{app, handler, Path, Query};
+use darpi::{app, handler, App, Path, Query};
 use env_logger;
 use futures::Future;
 use serde::{Deserialize, Serialize};

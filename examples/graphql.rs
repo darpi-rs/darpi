@@ -1,7 +1,7 @@
 use async_graphql::connection::{query, Connection, Edge, EmptyFields};
 use async_graphql::{Context, Enum, Interface, Object};
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
-use darpi::{app, handler, logger::DefaultFormat, Path};
+use darpi::{app, handler, logger::DefaultFormat, App, Path};
 use darpi_graphql::{GraphQLBody, MultipartOptionsProviderImpl, Request, Response};
 use darpi_middleware::{body_size_limit, log_request, log_response};
 use env_logger;
