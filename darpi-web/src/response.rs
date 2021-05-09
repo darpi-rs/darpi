@@ -71,6 +71,24 @@ impl Responder for String {
     }
 }
 
+macro_rules! impl_responder_n {
+    ($($x:ty),* $(,)*) => {
+        $(
+            impl Responder for $x {
+                fn respond(self) -> Response<Body> {
+                    Response::builder()
+                        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+                        .status(StatusCode::OK)
+                        .body(Body::from(format!("{}", self)))
+                        .unwrap()
+                }
+            }
+        )*
+    };
+}
+
+impl_responder_n!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
+
 impl Responder for () {
     fn respond(self) -> Response<Body> {
         Response::builder()

@@ -30,8 +30,12 @@ impl Claims {
 /// authorize provides users the ability to control access to certain or all routes
 /// Simply pass it along in the handler macro and provide the #[handler] argument
 ///  `T: UserRole`
-///```rust
-/// #[handler(Container, [authorize(Role::Admin)])]
+///```rust,ignore
+/// #[handler({
+///     middleware: {
+///         request: [authorize(Role::Admin)]
+///     }
+/// })]
 /// async fn do_something() -> String {
 ///     format!("do something")
 /// }
@@ -67,7 +71,7 @@ pub async fn authorize(
 /// UserRole represents user types within an application
 /// to identify access levels
 ///
-/// ```rust, no_run
+/// ```rust, ignore
 /// #[derive(Clone, PartialEq, PartialOrd)]
 /// pub enum Role {
 ///     User,
