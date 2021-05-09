@@ -16,7 +16,7 @@ use std::convert::TryFrom;
 /// if non is found, it will result in a noop
 /// in this example, we can all requests to all handlers will be compressed with gzip
 ///  if the client supports it
-///```rust
+///```rust,ignore
 /// #[tokio::test]
 /// async fn main() -> Result<(), darpi::Error> {
 ///     let address = format!("127.0.0.1:{}", 3000);
@@ -98,7 +98,7 @@ pub async fn compress(
 /// will result in an error response with StatusCode::UNSUPPORTED_MEDIA_TYPE
 /// in this example, all requests to all handlers will be decompressed before
 /// the handler gets invoked
-///```rust
+///```rust,ignore
 /// #[tokio::test]
 /// async fn main() -> Result<(), darpi::Error> {
 ///     let address = format!("127.0.0.1:{}", 3000);

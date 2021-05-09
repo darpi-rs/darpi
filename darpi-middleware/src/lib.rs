@@ -12,7 +12,7 @@ use std::time::Instant;
 /// this middleware limits the request body size by a user passed argument
 /// the argument `size` indicates number of bytes
 /// if the body is higher than the specified size, it will result in an error response being sent to the user
-/// ```rust
+/// ```rust, ignore
 /// #[handler([body_size_limit(64)])]
 /// async fn say_hello(#[path] p: Name, #[body] payload: Json<Name>) -> impl Responder {
 ///     format!("{} sends hello to {}", p.name, payload.name)
