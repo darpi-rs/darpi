@@ -542,7 +542,7 @@ fn make_route_lit(
             #(#methods )*
         }
 
-        impl darpi_route::Route<(#(#tuple_type ,)*)> for #struct_ident {
+        impl darpi::Route<(#(#tuple_type ,)*)> for #struct_ident {
             #[inline(always)]
             fn is_match(req: &Vec<&str>, method: &str) -> bool {
                 !(#(#is_match_lines )||*)

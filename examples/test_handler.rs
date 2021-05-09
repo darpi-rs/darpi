@@ -1,13 +1,16 @@
 use darpi::response::ResponderError;
-use darpi::{handler, Args, Body, Handler, Path, Request, StatusCode};
+use darpi::{handler, Path};
+#[cfg(test)]
+use darpi::{Args, Body, Handler, Request, StatusCode};
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::num::TryFromIntError;
+#[cfg(test)]
+use std::sync::Arc;
 
 #[tokio::test]
 async fn increment_byte_ok() {
-    use std::sync::Arc;
     let req = Request::get("http://127.0.0.1:3000/increment_bute/5")
         .body(Body::empty())
         .unwrap();
@@ -28,7 +31,6 @@ async fn increment_byte_ok() {
 
 #[tokio::test]
 async fn increment_byte_not_ok() {
-    use std::sync::Arc;
     let req = Request::get("http://127.0.0.1:3000/increment_bute/5")
         .body(Body::empty())
         .unwrap();
