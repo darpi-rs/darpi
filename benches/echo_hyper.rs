@@ -27,13 +27,13 @@ fn echo_hyper(c: &mut Criterion) {
     let (shutdown, runtime) = make_server();
 
     let client = reqwest::Client::new();
-    c.bench_function("echo", |b| {
+    c.bench_function("echo hyper", |b| {
         b.to_async(&runtime).iter(|| {
             let rand_str = get_random_str();
 
             let req = client
                 .get("http://127.0.0.1:3000/echo")
-                .query(&("echo", rand_str))
+                .query(&[&("echo", rand_str)])
                 .build()
                 .unwrap();
             async {
@@ -62,16 +62,17 @@ fn make_server() -> (Sender<()>, Runtime) {
 
     let addr = ([127, 0, 0, 1], 3000).into();
 
-    let server = Server::bind(&addr).serve(make_svc);
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let server = runtime
+        .block_on(async { Server::bind(&addr) })
+        .serve(make_svc);
 
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     let graceful = server.with_graceful_shutdown(async {
         rx.await.ok();
     });
 
-    let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.spawn(graceful);
-
     (tx, runtime)
 }
 

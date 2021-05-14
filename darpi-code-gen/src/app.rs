@@ -452,6 +452,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
             AppImpl::new(#address_value)
         }
     };
+
     //panic!("{}", tokens.to_string());
     Ok(tokens.into())
 }

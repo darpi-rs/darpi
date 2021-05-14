@@ -9,11 +9,14 @@ repository = "https://github.com/rust-darpi/darpi.git"
 keywords = ["darpi", "http", "web", "framework", "api"]
 categories = ["network-programming", "asynchronous", "web-programming::http-server"]
 
+[lib]
+bench = false
+
 [workspace]
 members = [
     "darpi-code-gen",
     "darpi-web",
-    "darpi-route",
+    "gonzales",
     "darpi-middleware",
     "darpi-headers",
     "darpi-graphql"
@@ -28,7 +31,7 @@ codegen-units = 1
 [dependencies]
 darpi-web = {path = "./darpi-web"}
 darpi-code-gen = {path = "./darpi-code-gen"}
-darpi-route = {path = "./darpi-route"}
+gonzales = {path = "gonzales" }
 hyper = {version = "0.14.4", features = ["server", "http1", "http2", "stream", "tcp"]}
 futures = "0.3.8"
 shaku = {version = "0.5.0", features = ["thread_safe"]}
@@ -52,8 +55,8 @@ env_logger = "0.8.2"
 async-graphql = "2.5.4"
 slab = "0.4.2"
 tokio-tungstenite = { version = "0.14.0", features = ["rustls-tls"]}
-criterion = {version = "0.3", features = ["async_tokio"]}
-regex = "1.4.5"
+criterion = {version = "0.3", features = ["async_tokio", "html_reports"]}
+regex = "1.5.4"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 rand = "0.8.3"
 futures-channel = "0.3"
@@ -66,4 +69,12 @@ harness = false
 
 [[bench]]
 name = "echo"
+harness = false
+
+[[bench]]
+name = "echo_hyper"
+harness = false
+
+[[bench]]
+name = "routing"
 harness = false
