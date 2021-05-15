@@ -1,3 +1,8 @@
+// for space and time efficiency, i needed to transform the arguments into a single byte
+// this looks okay because the device control 1 ascii byte is obscure enough
+const RESERVED_BYTE: u8 = 17;
+const RESERVED_BYTE_INDEX: usize = RESERVED_BYTE as usize;
+
 pub struct RouterBuilder {
     ascii_case_insensitive: bool,
 }
@@ -29,7 +34,7 @@ impl RouterBuilder {
                     should_check = false;
                     if *b == b'}' {
                         should_check = true;
-                        cur.push(b'*');
+                        cur.push(RESERVED_BYTE);
                     }
                     continue;
                 }
@@ -53,7 +58,7 @@ impl RouterBuilder {
             let mut cur_states = &mut states;
             let mut cur_arg_n = 0;
             for ch in bytes.iter() {
-                if *ch == b'*' {
+                if *ch == RESERVED_BYTE {
                     cur_arg_n += 1;
                 }
                 state = cur_states.0[*ch as usize].as_mut();
@@ -147,8 +152,7 @@ impl Router {
                 i += 1;
                 continue;
             }
-
-            let arg = &cur_states.0['*' as usize];
+            let arg = &cur_states.0[RESERVED_BYTE_INDEX];
 
             if let Some(trans) = &arg.trans {
                 if args.is_empty() {
@@ -190,9 +194,13 @@ mod tests {
     fn test_not_ok() {
         let route = vec!["/hello/{user_id}", "/helloworld"];
         let router = RouterBuilder::new().build(route);
-        let m = router.route("hello*");
+        let m = router.route("/hello*");
         assert_eq!(None, m);
-        let m = router.route("hello1");
+        let m = router.route("/hello1");
+        assert_eq!(None, m);
+        let m = router.route("/hello*/");
+        assert_eq!(None, m);
+        let m = router.route("/*");
         assert_eq!(None, m);
     }
 
@@ -206,6 +214,15 @@ mod tests {
             "/hello/world/{user_id}",
         ];
         let router = RouterBuilder::new().build(route);
+        let m = router.route("/hello/*");
+        assert_eq!(
+            Some(Match {
+                index: 2,
+                args: vec![(7, 8)]
+            }),
+            m
+        );
+
         assert_eq!(
             Some(Match {
                 index: 1,
@@ -219,7 +236,7 @@ mod tests {
                 index: 2,
                 args: vec![(7, 12)]
             }),
-            router.route(&"/hello/petar")
+            router.route("/hello/petar")
         );
 
         assert_eq!(
@@ -227,7 +244,7 @@ mod tests {
                 index: 3,
                 args: vec![(7, 12)]
             }),
-            router.route(&"/hello/petar/world")
+            router.route("/hello/petar/world")
         );
         assert_eq!(
             Some(Match {
