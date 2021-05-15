@@ -2,14 +2,13 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::ToTokens;
 use quote::{format_ident, quote};
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use syn::parse::{Error as SynError, Parse, ParseStream, Result as SynResult};
 use syn::parse_quote::ParseQuote;
 
 use syn::{
     braced, bracketed, punctuated::Punctuated, token, Error, Expr as SynExpr, Expr, ExprCall,
-    ExprLit, ExprPath, Ident, LitInt, LitStr,
+    ExprLit, ExprPath, Ident, LitStr,
 };
 
 pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
@@ -26,7 +25,6 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         return Err(Error::new(Span::call_site(), "no handlers registered"));
     }
 
-    let handler_len = config.handlers.len();
     let handlers = config.handlers;
 
     let (module_def, module_let, module_self) = config.container.map_or(
@@ -279,11 +277,30 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         (jobs_req, jobs_res)
     });
 
-    let mut route_names = vec![];
     let mut route_defs = vec![];
+    let mut route_strs = vec![];
+    let mut route_match = vec![];
+
     for (i, h) in handlers.iter().enumerate() {
         let id = format_ident!("route{}", i);
-        route_names.push(id.clone());
+        route_strs.push(h.route.clone());
+        let ha = h.handler.clone();
+
+        route_match.push(quote! {
+            #i => {
+                 if #id::is_match(method.as_str()) {
+                    let args = darpi::Args{
+                        request: r,
+                        container: inner_module.clone(),
+                        route_args: #id::get_tuple_args(&route_str, rm.get_args()),
+                    };
+                    let mut rb = Handler::call(#ha, args).await.unwrap();
+                    #(#middleware_res )*
+                    #(#jobs_res )*
+                    return Ok::<_, std::convert::Infallible>(rb);
+                }
+            }
+        });
 
         let r = make_route_lit(
             &id,
@@ -293,34 +310,13 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         route_defs.push(r);
     }
 
-    let HandlerTokens {
-        routes,
-        route_arg_assert,
-        route_arg_assert_def,
-        routes_match,
-        body_assert,
-        body_assert_def,
-    } = make_handlers(middleware_res, jobs_res, route_names, handlers)?;
-
-    let route_possibilities = quote! {
-        #[allow(unused_imports)]
-        use darpi::Route;
-        use std::convert::TryFrom;
-        #[allow(non_camel_case_types, missing_docs)]
-        pub enum RoutePossibilities {
-            #(#routes ,)*
-        }
-    };
-
     let app = quote! {
         static __ONCE_INTERNAL__: std::sync::Once = std::sync::Once::new();
         #(#route_defs )*
-        #(#body_assert_def )*
-        #(#route_arg_assert_def )*
 
          pub struct AppImpl {
             #module_def
-            handlers: std::sync::Arc<[RoutePossibilities; #handler_len]>,
+            router: std::sync::Arc<darpi::gonzales::Router>,
             address: std::net::SocketAddr,
             rx: tokio::sync::oneshot::Receiver<()>,
             tx: Option<tokio::sync::oneshot::Sender<()>>,
@@ -331,16 +327,17 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         impl AppImpl {
             fn new(address: &str) -> Self {
                 let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-                #(#body_assert;)*
-                #(#route_arg_assert;)*
                 let address: std::net::SocketAddr = address
                     .parse()
                     .expect(&format!("invalid server address: `{}`", address));
 
+                let routes_vec = vec![#(#route_strs ,)*];
+                let router = std::sync::Arc::new(darpi::gonzales::RouterBuilder::new().build(routes_vec));
+
                 #module_let
                 Self {
                     #module_self
-                    handlers: std::sync::Arc::new([#(RoutePossibilities::#routes ,)*]),
+                    router: router,
                     address: address,
                     rx: rx,
                     tx: Some(tx),
@@ -368,7 +365,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
              async fn run(self) -> Result<(), darpi::Error> {
                 let address = self.address;
                 let module = self.module.clone();
-                let handlers = self.handlers.clone();
+                let router = self.router.clone();
                 let start_tx = self.start_tx;
                 let rx = self.rx;
 
@@ -395,7 +392,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
 
                 let make_svc = darpi::service::make_service_fn(move |_conn| {
                     let inner_module = std::sync::Arc::clone(&module);
-                    let inner_handlers = std::sync::Arc::clone(&handlers);
+                    let inner_router = std::sync::Arc::clone(&router);
 
                     async move {
                         Ok::<_, std::convert::Infallible>(darpi::service::service_fn(move |mut r: darpi::Request<darpi::Body>| {
@@ -407,20 +404,23 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                             use darpi::ResponseMiddleware;
                             use darpi::{RequestJobFactory, ResponseJobFactory};
                             use darpi::Handler;
+                            use darpi::Route;
                             let inner_module = std::sync::Arc::clone(&inner_module);
-                            let inner_handlers = std::sync::Arc::clone(&inner_handlers);
+                            let inner_router = std::sync::Arc::clone(&inner_router);
 
                             async move {
                                 let route_str = r.uri().path().to_string();
-                                let route: Vec<_> = route_str.split('/').collect();
                                 let method = r.method().clone();
 
                                 #(#middleware_req )*
                                 #(#jobs_req )*
 
-                                for rp in inner_handlers.iter() {
-                                    match rp {
-                                        #(#routes_match ,)*
+                                let route_m = inner_router.route(&route_str);
+
+                                if let Some(rm) = route_m {
+                                    match rm.get_index() {
+                                        #(#route_match ,)*
+                                        _ => {}
                                     }
                                 }
 
@@ -447,22 +447,13 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
 
     let tokens = quote! {
         {
-            #route_possibilities
             #app
             AppImpl::new(#address_value)
         }
     };
+
     //panic!("{}", tokens.to_string());
     Ok(tokens.into())
-}
-
-struct HandlerTokens {
-    routes: Vec<proc_macro2::TokenStream>,
-    route_arg_assert: Vec<proc_macro2::TokenStream>,
-    route_arg_assert_def: Vec<proc_macro2::TokenStream>,
-    routes_match: Vec<proc_macro2::TokenStream>,
-    body_assert: Vec<proc_macro2::TokenStream>,
-    body_assert_def: Vec<proc_macro2::TokenStream>,
 }
 
 fn make_route_lit(
@@ -473,6 +464,8 @@ fn make_route_lit(
     let r_str = r.to_token_stream().to_string();
     let mut parts = vec![];
     let mut args = vec![];
+    let mut args_i = 0;
+
     for (i, part) in r_str.split('/').enumerate() {
         let part = part.trim_end_matches('"');
         let starts = part.starts_with('{');
@@ -485,35 +478,14 @@ fn make_route_lit(
         }
 
         if starts && ends {
-            args.push((i, part.to_string()));
+            args.push((args_i, part.to_string()));
+            args_i += 1;
         } else {
             parts.push((i, part.to_string()));
         }
     }
 
-    let mut methods = vec![];
-
-    let mut is_match_lines = vec![];
     let method_str_lit = LitStr::new(method_type, Span::call_site());
-    is_match_lines.push(quote! {req.len() != Self::len()});
-    is_match_lines.push(quote! {#method_str_lit != method });
-
-    for (i, part) in parts.iter() {
-        let route_lit = LitStr::new(part, Span::call_site());
-        let func_name = format_ident!("p{}", i);
-        methods.push(quote! {
-            #[inline(always)]
-            const fn #func_name() -> &'static str {
-                return #route_lit;
-            }
-        });
-
-        let index = syn::Index::from(*i);
-        is_match_lines.push(quote! {
-            Self::#func_name() != req[#index]
-        });
-    }
-
     let mut prop_values = HashMap::new();
 
     for (i, prop) in args.iter() {
@@ -525,7 +497,7 @@ fn make_route_lit(
     let mut get_args_lines = vec![];
     for ((_, index), sorter) in prop_values {
         let i = syn::Index::from(*index);
-        get_args_lines.push((quote! {r[#i].to_string()}, sorter));
+        get_args_lines.push((quote! {route_str[r[#i].0..r[#i].1].to_string()}, sorter));
         tuple_type.push(quote! {String});
     }
 
@@ -533,137 +505,21 @@ fn make_route_lit(
 
     let sorted_get_args_lines: Vec<proc_macro2::TokenStream> =
         get_args_lines.iter().map(|a| a.0.clone()).collect();
-    let i = LitInt::new(&format!("{}", parts.len() + args.len()), Span::call_site());
 
     Ok(quote! {
         struct #struct_ident;
 
-        impl #struct_ident {
-            #(#methods )*
-        }
-
         impl darpi::Route<(#(#tuple_type ,)*)> for #struct_ident {
             #[inline(always)]
-            fn is_match(req: &Vec<&str>, method: &str) -> bool {
-                !(#(#is_match_lines )||*)
+            fn is_match(method: &str) -> bool {
+                #method_str_lit == method
             }
 
             #[inline(always)]
-            fn get_tuple_args(r: &Vec<&str>) -> (#(#tuple_type ,)*) {
+            fn get_tuple_args(route_str: &str, r: &Vec<(usize, usize)>) -> (#(#tuple_type ,)*) {
                 (#(#sorted_get_args_lines ,)*)
             }
-
-            #[inline(always)]
-            fn len() -> usize {
-                return #i;
-            }
         }
-    })
-}
-
-fn make_handlers(
-    middleware_res: Vec<proc_macro2::TokenStream>,
-    jobs_res: Vec<proc_macro2::TokenStream>,
-    defined_routes: Vec<Ident>,
-    handlers: Punctuated<Handler, token::Comma>,
-) -> Result<HandlerTokens, SynError> {
-    assert_eq!(defined_routes.len(), handlers.len());
-
-    let mut routes_match = vec![];
-    let mut routes = vec![];
-    let body_assert = vec![];
-    let body_assert_def = vec![];
-    let route_arg_assert = vec![];
-    let route_arg_assert_def = vec![];
-
-    for (i, el) in handlers.iter().enumerate() {
-        let handler = el
-            .handler
-            .path
-            .segments
-            .last()
-            .expect("cannot get handler segment")
-            .ident
-            .clone();
-
-        let method = el.method.path.segments.to_token_stream();
-        let route = el.route.clone();
-        let variant_name = format!("{}{}", handler.clone(), method.clone());
-        let variant_name: String = variant_name
-            .chars()
-            .map(|ch| {
-                if ch.is_alphanumeric() {
-                    return ch;
-                }
-                '_'
-            })
-            .collect();
-
-        let variant_name = format_ident!("{}", variant_name);
-        let variant_value = el
-            .handler
-            .path
-            .get_ident()
-            .expect("cannot get handler path ident");
-
-        let r = &defined_routes[i];
-        routes_match.push(quote! {
-            RoutePossibilities::#variant_name => {
-                if #r::is_match(&route, method.as_str()) {
-                    let args = darpi::Args{
-                        request: r,
-                        container: inner_module.clone(),
-                        route_args: #r::get_tuple_args(&route),
-                    };
-                    let mut rb = Handler::call(#variant_value, args).await.unwrap();
-                    #(#middleware_res )*
-                    #(#jobs_res )*
-                    return Ok::<_, std::convert::Infallible>(rb);
-                }
-            }
-        });
-
-        let route_str = route.to_token_stream().to_string();
-        routes.push((
-            quote! {
-                #variant_name
-            },
-            route_str,
-        ));
-    }
-
-    routes.sort_by(|left, right| {
-        let left_matches: Vec<usize> = left.1.match_indices('{').map(|t| t.0).collect();
-
-        if left_matches.is_empty() {
-            return Ordering::Less;
-        }
-
-        let left_count = left_matches.iter().fold(0, |acc, a| acc + a);
-        let right_matches: Vec<usize> = right.1.match_indices('{').map(|t| t.0).collect();
-
-        if right_matches.is_empty() {
-            return Ordering::Greater;
-        }
-
-        let right_count = right_matches.iter().fold(0, |acc, a| acc + a);
-
-        if left_matches.len() + left_count > right_matches.len() + right_count {
-            return Ordering::Less;
-        }
-
-        Ordering::Greater
-    });
-
-    let routes: Vec<proc_macro2::TokenStream> = routes.into_iter().map(|(ts, _)| ts).collect();
-
-    Ok(HandlerTokens {
-        routes,
-        route_arg_assert,
-        route_arg_assert_def,
-        routes_match,
-        body_assert,
-        body_assert_def,
     })
 }
 

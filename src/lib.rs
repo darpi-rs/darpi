@@ -10,10 +10,15 @@ pub use darpi_web::{
     Json,
 };
 
+pub trait Route<T = ()> {
+    fn is_match(method: &str) -> bool;
+    fn get_tuple_args(route_str: &str, req: &Vec<(usize, usize)>) -> T;
+}
+
 pub use async_trait::async_trait;
 pub use chrono;
-pub use darpi_route::Route;
 pub use futures;
+pub use gonzales;
 pub use http::{header, request::Parts as RequestParts, Method, StatusCode};
 pub use hyper::upgrade;
 pub use hyper::{self, body, body::HttpBody, service, Body, Error, Request, Response, Server};
