@@ -22,7 +22,7 @@ fn dfa_match(c: &mut Criterion) {
 
     c.bench_function("dfa_match", |b| {
         b.iter(|| {
-            for (m, method) in MATCHES {
+            for (m, _) in MATCHES {
                 let _ = router.route(m);
             }
         });
