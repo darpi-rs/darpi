@@ -103,6 +103,10 @@ pub struct Router {
     ascii_case_insensitive: bool,
 }
 
+/// Match represents a matched route
+/// index is its position in the original collection
+/// args is a vector of start and end positions within the matched
+/// route that represents the path arguments
 #[derive(Eq, PartialEq, Debug)]
 pub struct Match {
     index: usize,
