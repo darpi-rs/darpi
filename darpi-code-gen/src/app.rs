@@ -453,7 +453,7 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         }
     };
 
-    //panic!("{}", tokens.to_string());
+    panic!("{}", tokens.to_string());
     Ok(tokens.into())
 }
 

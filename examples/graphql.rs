@@ -465,30 +465,211 @@ pub(crate) async fn do_something1(#[query] p: Option<Name>) -> String {
 async fn main() -> Result<(), darpi::Error> {
     env_logger::builder().is_test(true).try_init().unwrap();
 
-    app!({
-        address: "127.0.0.1:3000",
-        container: {
-            factory: make_container(),
-            type: Container
-        },
-        jobs: {
-            request: [],
-            response: []
-        },
-        middleware: {
-            request: [log_request(DefaultFormat)],
-            response: [log_response(DefaultFormat, request(0))]
-        },
-        handlers: [{
-            route: "/",
-            method: GET,
-            handler: index_get
-        },{
-            route: "/",
-            method: POST,
-            handler: index_post
-        }]
-    })
-    .run()
-    .await
+    // app!({
+    //     address: "127.0.0.1:3000",
+    //     container: {
+    //         factory: make_container(),
+    //         type: Container
+    //     },
+    //     jobs: {
+    //         request: [],
+    //         response: []
+    //     },
+    //     middleware: {
+    //         request: [log_request(DefaultFormat)],
+    //         response: [log_response(DefaultFormat, request(0))]
+    //     },
+    //     handlers: [{
+    //         route: "/",
+    //         method: GET,
+    //         handler: index_get
+    //     },{
+    //         route: "/",
+    //         method: POST,
+    //         handler: index_post
+    //     }]
+    // })
+    // .run()
+    // .await
+
+    #[allow(unused_imports)]
+    use std::convert::TryFrom;
+    #[allow(non_camel_case_types, missing_docs)]
+    pub enum RoutePossibilities {
+        index_postPOST,
+        index_getGET,
+    }
+    static __ONCE_INTERNAL__: std::sync::Once = std::sync::Once::new();
+    pub struct AppImpl {
+        module: std::sync::Arc<Container>,
+        handlers: std::sync::Arc<[RoutePossibilities; 2usize]>,
+        address: std::net::SocketAddr,
+        rx: tokio::sync::oneshot::Receiver<()>,
+        tx: Option<tokio::sync::oneshot::Sender<()>>,
+        start_rx: Option<tokio::sync::oneshot::Receiver<()>>,
+        start_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    }
+    impl AppImpl {
+        fn new(address: &str) -> Self {
+            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+            let address: std::net::SocketAddr = address
+                .parse()
+                .expect(&format!("invalid server address: `{}`", address));
+            let module = std::sync::Arc::new(make_container());
+            Self {
+                module: module,
+                handlers: std::sync::Arc::new([
+                    RoutePossibilities::index_postPOST,
+                    RoutePossibilities::index_getGET,
+                ]),
+                address: address,
+                rx: rx,
+                tx: Some(tx),
+                start_rx: None,
+                start_tx: None,
+            }
+        }
+    }
+    #[darpi::async_trait]
+    impl darpi::App for AppImpl {
+        fn startup_notify(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+            if let Some(_) = self.start_tx {
+                return None;
+            }
+            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+            self.start_tx = Some(tx);
+            Some(rx)
+        }
+        fn shutdown_signal(&mut self) -> Option<tokio::sync::oneshot::Sender<()>> {
+            self.tx.take()
+        }
+        async fn run(self) -> Result<(), darpi::Error> {
+            let address = self.address;
+            let module = self.module.clone();
+            let handlers = self.handlers.clone();
+            let start_tx = self.start_tx;
+            let rx = self.rx;
+            let default_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |panic| {
+                darpi::log::error!("panic reason: `{}`", panic);
+                default_hook(panic);
+            }));
+            __ONCE_INTERNAL__.call_once(|| {
+                darpi::rayon::ThreadPoolBuilder::new()
+                    .panic_handler(|panic| {
+                        let msg = match panic.downcast_ref::<&'static str>() {
+                            Some(s) => *s,
+                            None => match panic.downcast_ref::<String>() {
+                                Some(s) => &s[..],
+                                None => "Unknown",
+                            },
+                        };
+                        darpi::log::warn!("panic reason: `{}`", msg);
+                    })
+                    .build_global()
+                    .unwrap();
+            });
+            let make_svc = darpi::service::make_service_fn(move |_conn| {
+                let inner_module = std::sync::Arc::clone(&module);
+                let inner_handlers = std::sync::Arc::clone(&handlers);
+                async move {
+                    Ok::<_, std::convert::Infallible>(darpi::service::service_fn(
+                        move |mut r: darpi::Request<darpi::Body>| {
+                            use darpi::futures::FutureExt;
+                            use darpi::response::ResponderError;
+                            use darpi::Handler;
+                            #[allow(unused_imports)]
+                            use darpi::RequestMiddleware;
+                            #[allow(unused_imports)]
+                            use darpi::ResponseMiddleware;
+                            use darpi::{RequestJobFactory, ResponseJobFactory};
+                            let inner_module = std::sync::Arc::clone(&inner_module);
+                            let inner_handlers = std::sync::Arc::clone(&inner_handlers);
+                            async move {
+                                let route_str = r.uri().path().to_string();
+                                let route: Vec<_> = route_str.split('/').collect();
+                                let method = r.method().clone();
+                                let m_arg_0 = match log_request::call(
+                                    &mut r,
+                                    inner_module.clone(),
+                                    DefaultFormat,
+                                )
+                                .await
+                                {
+                                    Ok(k) => k,
+                                    Err(e) => return Ok(e.respond_err()),
+                                };
+                                for rp in inner_handlers.iter() {
+                                    match rp {
+                                        RoutePossibilities::index_getGET => {
+                                            if route0::is_match(&route, method.as_str()) {
+                                                let args = darpi::Args {
+                                                    request: r,
+                                                    container: inner_module.clone(),
+                                                    route_args: route0::get_tuple_args(&route),
+                                                };
+                                                let mut rb =
+                                                    Handler::call(index_get, args).await.unwrap();
+                                                let res_m_arg_0 = match log_response::call(
+                                                    &mut rb,
+                                                    inner_module.clone(),
+                                                    (DefaultFormat, m_arg_0.clone()),
+                                                )
+                                                .await
+                                                {
+                                                    Ok(k) => k,
+                                                    Err(e) => return Ok(e.respond_err()),
+                                                };
+                                                return Ok::<_, std::convert::Infallible>(rb);
+                                            }
+                                        }
+                                        RoutePossibilities::index_postPOST => {
+                                            if route1::is_match(&route, method.as_str()) {
+                                                let args = darpi::Args {
+                                                    request: r,
+                                                    container: inner_module.clone(),
+                                                    route_args: route1::get_tuple_args(&route),
+                                                };
+                                                let mut rb =
+                                                    Handler::call(index_post, args).await.unwrap();
+                                                let res_m_arg_0 = match log_response::call(
+                                                    &mut rb,
+                                                    inner_module.clone(),
+                                                    (DefaultFormat, m_arg_0.clone()),
+                                                )
+                                                .await
+                                                {
+                                                    Ok(k) => k,
+                                                    Err(e) => return Ok(e.respond_err()),
+                                                };
+                                                return Ok::<_, std::convert::Infallible>(rb);
+                                            }
+                                        }
+                                    }
+                                }
+                                return async {
+                                    Ok::<_, std::convert::Infallible>(
+                                        darpi::Response::builder()
+                                            .status(darpi::StatusCode::NOT_FOUND)
+                                            .body(darpi::Body::empty())
+                                            .unwrap(),
+                                    )
+                                }
+                                .await;
+                            }
+                        },
+                    ))
+                }
+            });
+            let server = darpi::Server::bind(&address).serve(make_svc);
+            let graceful = server.with_graceful_shutdown(async {
+                rx.await.ok();
+            });
+            if let Some(start) = start_tx {
+                let _ = start.send(());
+            }
+            graceful.await
+        }
+    }
+    unimplemented!()
 }

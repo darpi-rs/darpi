@@ -1,9 +1,3 @@
-pub trait Route<T> {
-    fn is_match(req: &Vec<&str>, method: &str) -> bool;
-    fn get_tuple_args(req: &Vec<&str>) -> T;
-    fn len() -> usize;
-}
-
 pub struct RouterBuilder {
     ascii_case_insensitive: bool,
 }
@@ -14,21 +8,52 @@ impl RouterBuilder {
             ascii_case_insensitive: false,
         }
     }
+    fn replace<I, P>(&self, patterns: I) -> Vec<Vec<u8>>
+    where
+        I: IntoIterator<Item = P>,
+        P: AsRef<[u8]>,
+    {
+        let mut pts = vec![];
+
+        for pattern in patterns.into_iter() {
+            let mut cur = vec![];
+            let bytes = pattern.as_ref();
+            let mut in_brace = false;
+            let mut should_check = true;
+
+            for b in bytes.iter() {
+                if should_check {
+                    in_brace = *b == b'{';
+                }
+                if in_brace {
+                    should_check = false;
+                    if *b == b'}' {
+                        should_check = true;
+                        cur.push(b'*');
+                    }
+                    continue;
+                }
+                cur.push(*b);
+            }
+            pts.push(cur);
+        }
+        pts
+    }
     pub fn build<I, P>(&self, patterns: I) -> Router
     where
         I: IntoIterator<Item = P>,
         P: AsRef<[u8]>,
     {
+        let patterns = self.replace(patterns);
         let mut states = make_states();
         let mut max_arg_n = 0;
-        for (i, pat) in patterns.into_iter().enumerate() {
-            let bytes = pat.as_ref();
 
+        for (i, bytes) in patterns.into_iter().enumerate() {
             let mut state = &mut Default::default();
             let mut cur_states = &mut states;
             let mut cur_arg_n = 0;
             for ch in bytes.iter() {
-                if *ch == '{' as u8 || *ch == '}' as u8 {
+                if *ch == b'*' {
                     cur_arg_n += 1;
                 }
                 state = cur_states.0[*ch as usize].as_mut();
@@ -37,8 +62,6 @@ impl RouterBuilder {
                 }
                 cur_states = state.trans.as_mut().unwrap();
             }
-
-            cur_arg_n /= 2;
 
             if cur_arg_n > max_arg_n {
                 max_arg_n = cur_arg_n;
@@ -85,26 +108,25 @@ pub struct Router {
     max_arg_n: usize,
 }
 
-#[derive(Debug)]
-#[allow(unused)]
-pub struct Match<'a> {
+#[derive(Eq, PartialEq, Debug)]
+pub struct Match {
     index: usize,
-    args: Vec<&'a [u8]>,
+    args: Vec<(usize, usize)>,
 }
 
-impl<'a> Match<'a> {
+impl Match {
     #[inline(always)]
     pub fn get_index(&self) -> usize {
         self.index
     }
     #[inline(always)]
-    pub fn get_args(&self) -> &Vec<&'a [u8]> {
+    pub fn get_args(&self) -> &Vec<(usize, usize)> {
         &self.args
     }
 }
 
 impl Router {
-    pub fn route<'a, P>(&'a self, r: &'a P) -> Option<Match>
+    pub fn route<P>(&self, r: P) -> Option<Match>
     where
         P: AsRef<[u8]>,
     {
@@ -135,10 +157,10 @@ impl Router {
                 let start = i;
                 match_index = arg.match_index;
                 cur_states = trans;
-                while i < bytes.len() && bytes[i] != '/' as u8 {
+                while i < bytes.len() && bytes[i] != b'/' {
                     i += 1;
                 }
-                args.push(&bytes[start..i]);
+                args.push((start, i));
                 continue;
             }
             return None;
@@ -159,6 +181,65 @@ struct State {
 
 #[derive(Debug)]
 struct States(pub [Box<State>; 256]);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_not_ok() {
+        let route = vec!["/hello/{user_id}", "/helloworld"];
+        let router = RouterBuilder::new().build(route);
+        let m = router.route("hello*");
+        assert_eq!(None, m);
+        let m = router.route("hello1");
+        assert_eq!(None, m);
+    }
+
+    #[test]
+    fn test_ok() {
+        let route = vec![
+            "/helloworld",
+            "/hello/world",
+            "/hello/{user_id}",
+            "/hello/{user_id}/world",
+            "/hello/world/{user_id}",
+        ];
+        let router = RouterBuilder::new().build(route);
+        assert_eq!(
+            Some(Match {
+                index: 1,
+                args: vec![]
+            }),
+            router.route("/hello/world")
+        );
+
+        assert_eq!(
+            Some(Match {
+                index: 2,
+                args: vec![(7, 12)]
+            }),
+            router.route(&"/hello/petar")
+        );
+
+        assert_eq!(
+            Some(Match {
+                index: 3,
+                args: vec![(7, 12)]
+            }),
+            router.route(&"/hello/petar/world")
+        );
+        assert_eq!(
+            Some(Match {
+                index: 4,
+                args: vec![(13, 18)]
+            }),
+            router.route(&"/hello/world/world")
+        );
+
+        assert_eq!(None, router.route(&"/hello/world/world/world"));
+    }
+}
 
 fn make_states() -> States {
     States([

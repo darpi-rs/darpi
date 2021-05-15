@@ -13,7 +13,7 @@ pub use darpi_web::{
 pub use async_trait::async_trait;
 pub use chrono;
 pub use futures;
-pub use gonzales::Route;
+pub use gonzales;
 pub use http::{header, request::Parts as RequestParts, Method, StatusCode};
 pub use hyper::upgrade;
 pub use hyper::{self, body, body::HttpBody, service, Body, Error, Request, Response, Server};
