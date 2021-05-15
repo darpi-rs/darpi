@@ -16,3 +16,7 @@ publish:
 .PHONY: benches
 benches:
 	cargo bench --benches -- --output-format  bencher
+
+.PHONY: cloc
+cloc:
+	cloc --exclude-dir=target .

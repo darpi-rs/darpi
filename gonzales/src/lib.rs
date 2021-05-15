@@ -58,10 +58,11 @@ impl RouterBuilder {
             let mut cur_states = &mut states;
             let mut cur_arg_n = 0;
             for ch in bytes.iter() {
-                if *ch == RESERVED_BYTE {
+                let ch = ascii_to_lower(*ch);
+                if ch == RESERVED_BYTE {
                     cur_arg_n += 1;
                 }
-                state = cur_states.0[*ch as usize].as_mut();
+                state = cur_states.0[ch as usize].as_mut();
                 if state.trans.is_none() {
                     state.trans = Some(make_states());
                 }
@@ -73,23 +74,13 @@ impl RouterBuilder {
             }
 
             state.match_index = Some(i);
-
-            if self.ascii_case_insensitive {
-                let mut state = &mut Default::default();
-                let mut cur_states = &mut states;
-                for ch in bytes.iter() {
-                    let ch = opposite_ascii_case(*ch);
-                    state = cur_states.0[ch as usize].as_mut();
-                    if state.trans.is_none() {
-                        state.trans = Some(make_states());
-                    }
-                    cur_states = state.trans.as_mut().unwrap();
-                }
-                state.match_index = Some(i);
-            }
         }
 
-        Router { states, max_arg_n }
+        Router {
+            states,
+            max_arg_n,
+            ascii_case_insensitive: self.ascii_case_insensitive,
+        }
     }
 
     pub fn ascii_case_insensitive(&mut self, yes: bool) -> &mut RouterBuilder {
@@ -98,11 +89,9 @@ impl RouterBuilder {
     }
 }
 
-fn opposite_ascii_case(b: u8) -> u8 {
+fn ascii_to_lower(b: u8) -> u8 {
     if b'A' <= b && b <= b'Z' {
         b.to_ascii_lowercase()
-    } else if b'a' <= b && b <= b'z' {
-        b.to_ascii_uppercase()
     } else {
         b
     }
@@ -111,6 +100,7 @@ fn opposite_ascii_case(b: u8) -> u8 {
 pub struct Router {
     states: States,
     max_arg_n: usize,
+    ascii_case_insensitive: bool,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -143,7 +133,11 @@ impl Router {
         let mut args = Vec::new();
 
         while i < bytes.len() {
-            let byte = bytes[i];
+            let byte = match self.ascii_case_insensitive {
+                true => ascii_to_lower(bytes[i]),
+                false => bytes[i],
+            };
+
             state = &cur_states.0[byte as usize];
 
             if let Some(trans) = &state.trans {
@@ -202,6 +196,23 @@ mod tests {
         assert_eq!(None, m);
         let m = router.route("/*");
         assert_eq!(None, m);
+        assert_eq!(None, router.route("/hEllO/wOrlD"));
+    }
+
+    #[test]
+    fn test_ci_ok() {
+        let route = vec!["/hello/{user_id}", "/helloworld"];
+        let router = RouterBuilder::new()
+            .ascii_case_insensitive(true)
+            .build(route);
+        let m = router.route("/HelloWorld");
+        assert_eq!(
+            Some(Match {
+                index: 1,
+                args: vec![]
+            }),
+            m
+        );
     }
 
     #[test]
