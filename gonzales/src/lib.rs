@@ -69,7 +69,7 @@ impl RouterBuilder {
 
             for ch in bytes.iter() {
                 let ch = ascii_to_lower(*ch);
-                state = cur_states.0[ch as usize].as_mut();
+                state = &mut cur_states.0[ch as usize];
 
                 if state.trans.is_none() {
                     state.trans = Some(make_states());
@@ -101,7 +101,7 @@ fn ascii_to_lower(b: u8) -> u8 {
 }
 
 pub struct Router {
-    states: States,
+    states: Box<States>,
     ascii_case_insensitive: bool,
 }
 
@@ -264,12 +264,12 @@ impl Router {
 
 #[derive(Default, Debug)]
 struct State {
-    trans: Option<States>,
+    trans: Option<Box<States>>,
     match_index: Option<usize>,
 }
 
 #[derive(Debug)]
-struct States(pub [Box<State>; 256]);
+struct States(pub [State; 256]);
 
 #[cfg(test)]
 mod tests {
@@ -403,1031 +403,1033 @@ mod tests {
     }
 }
 
-fn make_states() -> States {
-    States([
-        Box::new(State {
+fn make_states() -> Box<States> {
+    let states = States([
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-        Box::new(State {
+        },
+        State {
             trans: None,
             match_index: None,
-        }),
-    ])
+        },
+    ]);
+
+    Box::new(states)
 }

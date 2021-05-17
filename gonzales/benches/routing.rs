@@ -158,33 +158,6 @@ fn call() -> impl Iterator<Item = &'static str> {
     std::array::IntoIter::new(arr)
 }
 
-fn gonzales(c: &mut Criterion) {
-    let router = gonzales::RouterBuilder::new().build(register!(brackets));
-
-    c.bench_function("gonzales", |b| {
-        b.iter(|| {
-            for call in call() {
-                let _ = router.route(black_box(call));
-            }
-        });
-    });
-}
-
-fn matchit(c: &mut Criterion) {
-    let mut tree = matchit::Node::default();
-    for route in register!(colon) {
-        tree.insert(route, true);
-    }
-
-    c.bench_function("matchit", |b| {
-        b.iter(|| {
-            for call in call() {
-                let _ = tree.at(black_box(call));
-            }
-        });
-    });
-}
-
 fn bench_regex_set(c: &mut Criterion) {
     let set = regex::RegexSet::new(register!(regex)).unwrap();
     c.bench_function("bench_regex_set", |b| {
@@ -226,10 +199,36 @@ fn bench_route_recognizer(c: &mut Criterion) {
     });
 }
 
+fn compare_routers(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Compare Routers");
+
+    let mut matchit = matchit::Node::new();
+    for route in register!(colon) {
+        matchit.insert(route, true).unwrap();
+    }
+    group.bench_function("matchit", |b| {
+        b.iter(|| {
+            for route in call() {
+                black_box(matchit.at(route).unwrap());
+            }
+        });
+    });
+
+    let gonzales = gonzales::RouterBuilder::new().build(register!(brackets));
+    group.bench_function("gonzales", |b| {
+        b.iter(|| {
+            for route in call() {
+                black_box(gonzales.route(route).unwrap());
+            }
+        });
+    });
+    group.finish();
+}
+
 // criterion_group! {
 //     name = benches;
 //     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Protobuf));
 //     targets = dfa_match
 // }
-criterion_group! {benches, matchit, gonzales, bench_regex_set, bench_actix, bench_route_recognizer}
+criterion_group! {benches, compare_routers, bench_regex_set, bench_actix, bench_route_recognizer}
 criterion_main!(benches);
