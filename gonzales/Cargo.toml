@@ -10,3 +10,19 @@ repository = "https://github.com/rust-darpi/darpi.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+smallvec = "1.6.1"
+
+[dev-dependencies]
+pprof = {version="0.4.3", features=["criterion", "protobuf", "flamegraph"]}
+criterion = {version = "0.3", features = ["async_tokio", "html_reports"]}
+matchit = "0.3.2"
+actix-router = "0.2.7"
+regex = "1.5.4"
+route-recognizer = "0.3.0"
+
+[[bench]]
+name = "routing"
+harness = false
+
+[lib]
+bench = false
