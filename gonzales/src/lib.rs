@@ -135,7 +135,7 @@ impl Array {
             return;
         }
 
-        self.push(value)
+        self.array.push(value)
     }
 }
 
@@ -281,6 +281,24 @@ mod tests {
             a.push(i);
         }
         a
+    }
+
+    #[test]
+    fn test_array() {
+        let mut a = Array::new();
+        a.push((1, 1));
+        a.push((1, 1));
+        a.push((1, 1));
+        a.push((1, 1));
+        assert!(!a.array.spilled());
+
+        let mut a = Array::new();
+        a.push((1, 1));
+        a.push((1, 1));
+        a.push((1, 1));
+        a.push((1, 1));
+        a.push((1, 1));
+        assert!(a.array.spilled());
     }
 
     #[test]
