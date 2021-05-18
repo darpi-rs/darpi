@@ -68,8 +68,13 @@ impl RouterBuilder {
             let mut cur_states = &mut states;
 
             for ch in bytes.iter() {
-                let ch = ascii_to_lower(*ch);
-                state = &mut cur_states.0[ch as usize];
+                let ch = if self.ascii_case_insensitive {
+                    ascii_to_lower(*ch)
+                } else {
+                    *ch
+                };
+
+                state = &mut cur_states[ch as usize];
 
                 if state.trans.is_none() {
                     state.trans = Some(make_states());
@@ -80,10 +85,13 @@ impl RouterBuilder {
             state.match_index = Some(i);
         }
 
-        Router {
-            states,
-            ascii_case_insensitive: self.ascii_case_insensitive,
-        }
+        let casing = if self.ascii_case_insensitive {
+            INSENSITIVE
+        } else {
+            SENSITIVE
+        };
+
+        Router { states, casing }
     }
 
     pub fn ascii_case_insensitive(&mut self, yes: bool) -> &mut RouterBuilder {
@@ -92,17 +100,12 @@ impl RouterBuilder {
     }
 }
 
-fn ascii_to_lower(b: u8) -> u8 {
+const fn ascii_to_lower(b: u8) -> u8 {
     if b'A' <= b && b <= b'Z' {
         b.to_ascii_lowercase()
     } else {
         b
     }
-}
-
-pub struct Router {
-    states: Box<States>,
-    ascii_case_insensitive: bool,
 }
 
 const ARRAY_DEFAULT_SIZE: usize = 4;
@@ -120,8 +123,10 @@ impl Array {
         Self { array, i: 0 }
     }
 
-    pub fn get(&self, i: usize) -> Option<(usize, usize)> {
-        self.array.get(i).cloned()
+    pub fn into_vec(self) -> Vec<(usize, usize)> {
+        let mut v = self.array.to_vec();
+        v.retain(|el| el.1 != 0);
+        v
     }
 
     pub fn is_empty(&self) -> bool {
@@ -165,15 +170,12 @@ impl Match {
     }
 }
 
+pub struct Router {
+    states: Box<[State; 256]>,
+    casing: [u8; 256],
+}
+
 impl Router {
-    #[inline(always)]
-    fn get_byte(b: u8) -> u8 {
-        b
-    }
-    #[inline(always)]
-    fn get_ascii_lower_byte(b: u8) -> u8 {
-        ascii_to_lower(b)
-    }
     pub fn route<P>(&self, r: P) -> Option<Match>
     where
         P: AsRef<[u8]>,
@@ -181,23 +183,18 @@ impl Router {
         let bytes = r.as_ref();
         let mut state;
         let mut match_index = None;
-        let mut cur_states = &self.states;
+        let mut cur_states = &*self.states;
         let mut i = 0;
         let mut args = Array::new();
         let mut multi_segments = Array::new();
-
-        let case_fn = match self.ascii_case_insensitive {
-            true => Self::get_ascii_lower_byte,
-            false => Self::get_byte,
-        };
 
         'outer: loop {
             if i == bytes.len() {
                 break;
             }
-            let byte = case_fn(bytes[i]);
+            let byte = self.casing[bytes[i] as usize];
 
-            if let Some(index) = cur_states.0[ASTERISK_BYTE_INDEX].match_index {
+            if let Some(index) = cur_states[ASTERISK_BYTE_INDEX].match_index {
                 let mut start = i;
 
                 loop {
@@ -220,7 +217,7 @@ impl Router {
                 });
             }
 
-            state = &cur_states.0[byte as usize];
+            state = &cur_states[byte as usize];
 
             if let Some(trans) = &state.trans {
                 match_index = state.match_index;
@@ -228,9 +225,9 @@ impl Router {
                 i += 1;
                 continue;
             }
-            let arg = &cur_states.0[RESERVED_BYTE_INDEX];
+            let arg = &cur_states[RESERVED_BYTE_INDEX];
 
-            if let Some(trans) = &arg.trans {
+            if let Some(trans) = arg.trans.as_deref() {
                 let start = i;
                 match_index = arg.match_index;
                 cur_states = trans;
@@ -242,6 +239,7 @@ impl Router {
                     }
                     i += 1;
                 }
+
                 args.push((start, i));
                 if end {
                     break 'outer;
@@ -264,12 +262,9 @@ impl Router {
 
 #[derive(Default, Debug)]
 struct State {
-    trans: Option<Box<States>>,
+    trans: Option<Box<[State; 256]>>,
     match_index: Option<usize>,
 }
-
-#[derive(Debug)]
-struct States(pub [State; 256]);
 
 #[cfg(test)]
 mod tests {
@@ -281,6 +276,68 @@ mod tests {
             a.push(i);
         }
         a
+    }
+
+    #[test]
+    fn test_thai() {
+        let route = vec!["/สวัสดี/{ผรหัสผู้ใช้}/*", "/สวัสดีชาวโลก"];
+        let router = RouterBuilder::new().build(route);
+
+        let r_str = "/สวัสดี/ปีเตอร์/ผม/น/ที่นี่";
+        let m = router.route(r_str);
+
+        assert_eq!(
+            Some(Match {
+                index: 0,
+                args: vec_to_array(vec![(20, 41)]),
+                multi_segments: vec_to_array(vec![(42, 48), (49, 52), (53, 71)]),
+            }),
+            m
+        );
+
+        let m = router.route("/สวัสดีชาวโลก/ปีเตอร์/ผม/น/ที่นี่");
+        assert_eq!(None, m);
+
+        let m = router.route("/สวัสดีชาวโลก");
+        assert_eq!(
+            Some(Match {
+                index: 1,
+                args: vec_to_array(Default::default()),
+                multi_segments: vec_to_array(Default::default()),
+            }),
+            m
+        );
+    }
+
+    #[test]
+    fn test_cyrillic() {
+        let route = vec!["/здравей/{потребител_ид}/*", "/здравейсвят"];
+        let router = RouterBuilder::new().build(route);
+
+        let r_str = "/здравей/петър/аз/съм/тук";
+        let m = router.route(r_str);
+
+        assert_eq!(
+            Some(Match {
+                index: 0,
+                args: vec_to_array(vec![(16, 26)]),
+                multi_segments: vec_to_array(vec![(27, 31), (32, 38), (39, 45)]),
+            }),
+            m
+        );
+
+        let m = router.route("/здравейсвят/петър/аз/съм/тук");
+        assert_eq!(None, m);
+
+        let m = router.route("/здравейсвят");
+        assert_eq!(
+            Some(Match {
+                index: 1,
+                args: vec_to_array(Default::default()),
+                multi_segments: vec_to_array(Default::default()),
+            }),
+            m
+        );
     }
 
     #[test]
@@ -421,8 +478,283 @@ mod tests {
     }
 }
 
-fn make_states() -> Box<States> {
-    let states = States([
+const SENSITIVE: [u8; 256] = [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
+    50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73,
+    74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97,
+    98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+    117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135,
+    136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154,
+    155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173,
+    174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192,
+    193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211,
+    212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230,
+    231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249,
+    250, 251, 252, 253, 254, 255,
+];
+
+const INSENSITIVE: [u8; 256] = [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    ascii_to_lower(65),
+    ascii_to_lower(66),
+    ascii_to_lower(67),
+    ascii_to_lower(68),
+    ascii_to_lower(69),
+    ascii_to_lower(70),
+    ascii_to_lower(71),
+    ascii_to_lower(72),
+    ascii_to_lower(73),
+    ascii_to_lower(74),
+    ascii_to_lower(75),
+    ascii_to_lower(76),
+    ascii_to_lower(77),
+    ascii_to_lower(78),
+    ascii_to_lower(79),
+    ascii_to_lower(80),
+    ascii_to_lower(81),
+    ascii_to_lower(82),
+    ascii_to_lower(83),
+    ascii_to_lower(84),
+    ascii_to_lower(85),
+    ascii_to_lower(86),
+    ascii_to_lower(87),
+    ascii_to_lower(88),
+    ascii_to_lower(89),
+    ascii_to_lower(90),
+    91,
+    92,
+    93,
+    94,
+    95,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138,
+    139,
+    140,
+    141,
+    142,
+    143,
+    144,
+    145,
+    146,
+    147,
+    148,
+    149,
+    150,
+    151,
+    152,
+    153,
+    154,
+    155,
+    156,
+    157,
+    158,
+    159,
+    160,
+    161,
+    162,
+    163,
+    164,
+    165,
+    166,
+    167,
+    168,
+    169,
+    170,
+    171,
+    172,
+    173,
+    174,
+    175,
+    176,
+    177,
+    178,
+    179,
+    180,
+    181,
+    182,
+    183,
+    184,
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    191,
+    192,
+    193,
+    194,
+    195,
+    196,
+    197,
+    198,
+    199,
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    218,
+    219,
+    220,
+    221,
+    222,
+    223,
+    224,
+    225,
+    226,
+    227,
+    228,
+    229,
+    230,
+    231,
+    232,
+    233,
+    234,
+    235,
+    236,
+    237,
+    238,
+    239,
+    240,
+    241,
+    242,
+    243,
+    244,
+    245,
+    246,
+    247,
+    248,
+    249,
+    250,
+    251,
+    252,
+    253,
+    254,
+    255,
+];
+
+fn make_states() -> Box<[State; 256]> {
+    let states = [
         State {
             trans: None,
             match_index: None,
@@ -1447,7 +1779,7 @@ fn make_states() -> Box<States> {
             trans: None,
             match_index: None,
         },
-    ]);
+    ];
 
     Box::new(states)
 }
