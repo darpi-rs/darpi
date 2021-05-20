@@ -413,6 +413,29 @@ mod tests {
     }
 
     #[test]
+    fn test_ci_not_ok() {
+        let route = vec!["/Hello/{user_id}", "/Helloworld"];
+        let router = RouterBuilder::new().build(route);
+        let m = router.route("/helloworld");
+        assert_eq!(None, m);
+
+        let m = router.route("/Helloworld");
+        assert_eq!(
+            Some(Match {
+                index: 1,
+                args: vec_to_array(Default::default()),
+                multi_segments: vec_to_array(Default::default()),
+            }),
+            m
+        );
+
+        let route = vec!["/hello/{user_id}", "/helloworld"];
+        let router = RouterBuilder::new().build(route);
+        let m = router.route("/Helloworld");
+        assert_eq!(None, m);
+    }
+
+    #[test]
     fn test_ci_ok() {
         let route = vec!["/hello/{user_id}", "/helloworld"];
         let router = RouterBuilder::new()
