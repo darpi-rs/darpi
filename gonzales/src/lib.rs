@@ -10,15 +10,17 @@ const ASTERISK_BYTE_INDEX: usize = ASTERISK_BYTE as usize;
 
 pub struct RouterBuilder {
     ascii_case_insensitive: bool,
+    has_asterisk: bool,
 }
 
 impl RouterBuilder {
     pub fn new() -> RouterBuilder {
         RouterBuilder {
             ascii_case_insensitive: false,
+            has_asterisk: false,
         }
     }
-    fn replace<I, P>(&self, patterns: I) -> Vec<Vec<u8>>
+    fn replace<I, P>(&mut self, patterns: I) -> Vec<Vec<u8>>
     where
         I: IntoIterator<Item = P>,
         P: AsRef<[u8]>,
@@ -50,12 +52,13 @@ impl RouterBuilder {
             if last_byte == b'*' {
                 cur.pop();
                 cur.push(ASTERISK_BYTE);
+                self.has_asterisk = true;
             }
             pts.push(cur);
         }
         pts
     }
-    pub fn build<I, P>(&self, patterns: I) -> Router
+    pub fn build<I, P>(&mut self, patterns: I) -> Router
     where
         I: IntoIterator<Item = P>,
         P: AsRef<[u8]>,
@@ -91,7 +94,11 @@ impl RouterBuilder {
             SENSITIVE
         };
 
-        Router { states, casing }
+        Router {
+            states,
+            casing,
+            has_asterisk: self.has_asterisk,
+        }
     }
 
     pub fn ascii_case_insensitive(&mut self, yes: bool) -> &mut RouterBuilder {
@@ -173,6 +180,7 @@ impl Match {
 pub struct Router {
     states: Box<[State; 256]>,
     casing: [u8; 256],
+    has_asterisk: bool,
 }
 
 impl Router {
@@ -194,27 +202,29 @@ impl Router {
             }
             let byte = self.casing[bytes[i] as usize];
 
-            if let Some(index) = cur_states[ASTERISK_BYTE_INDEX].match_index {
-                let mut start = i;
+            if self.has_asterisk {
+                if let Some(index) = cur_states[ASTERISK_BYTE_INDEX].match_index {
+                    let mut start = i;
 
-                loop {
-                    let last = i == bytes.len() - 1;
-                    if bytes[i] == b'/' || last {
-                        i += last as usize;
-                        multi_segments.push((start, i));
-                        start = i + 1;
+                    loop {
+                        let last = i == bytes.len() - 1;
+                        if bytes[i] == b'/' || last {
+                            i += last as usize;
+                            multi_segments.push((start, i));
+                            start = i + 1;
+                        }
+                        i += 1;
+                        if i >= bytes.len() {
+                            break;
+                        }
                     }
-                    i += 1;
-                    if i >= bytes.len() {
-                        break;
-                    }
+
+                    return Some(Match {
+                        index,
+                        args,
+                        multi_segments,
+                    });
                 }
-
-                return Some(Match {
-                    index,
-                    args,
-                    multi_segments,
-                });
             }
 
             state = &cur_states[byte as usize];
