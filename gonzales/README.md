@@ -33,15 +33,20 @@ Many thanks to [BurntSushi](https://github.com/BurntSushi) for his work in this 
         let router = RouterBuilder::new()
             .ascii_case_insensitive(true)
             .build(route);
-        let m = router.route("/HelloWorld");
-        assert_eq!(
-            Some(Match {
-                index: 1,
-                args: vec![],
-                multi_segments: vec![]
-            }),
-            m
-        );
+        let m = router.route("/HelloWorld")?;
+
+        // the index of the matched route
+        let index = m.get_index();
+        assert_eq!(1, index);
+        
+        // route arguments
+        let args = m.get_args();
+        assert!(args.is_empty());
+
+        // segments matched with `*`
+        let segments = m.get_segments();
+        assert!(segments.is_empty());
+        
 ```
 
 The router also supports multi-segment matching with `*`, only at the end of a route.

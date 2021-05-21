@@ -130,7 +130,7 @@ impl Array {
         Self { array, i: 0 }
     }
 
-    pub fn into_vec(self) -> Vec<(usize, usize)> {
+    pub fn to_vec(&self) -> Vec<(usize, usize)> {
         let mut v = self.array.to_vec();
         v.retain(|el| el.1 != 0);
         v
@@ -295,7 +295,6 @@ mod tests {
 
         let r_str = "/สวัสดี/ปีเตอร์/ผม/น/ที่นี่";
         let m = router.route(r_str);
-
         assert_eq!(
             Some(Match {
                 index: 0,
