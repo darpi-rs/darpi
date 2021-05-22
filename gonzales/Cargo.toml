@@ -6,6 +6,7 @@ edition = "2018"
 description = "This crate provides routing objects for darpi"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rust-darpi/darpi.git"
+categories = ["http", "router", "network programming"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
