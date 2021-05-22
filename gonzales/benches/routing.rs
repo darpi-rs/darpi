@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use pprof::criterion::{Output, PProfProfiler};
+//use pprof::criterion::{Output, PProfProfiler};
 
 macro_rules! register {
     (colon) => {{
@@ -225,10 +225,10 @@ fn compare_routers(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group! {
-    name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Protobuf));
-    targets = compare_routers
-}
-//criterion_group! {benches, compare_routers, bench_regex_set, bench_actix, bench_route_recognizer}
+// criterion_group! {
+//     name = benches;
+//     config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Protobuf));
+//     targets = compare_routers
+// }
+criterion_group! {benches, compare_routers, bench_regex_set, bench_actix, bench_route_recognizer}
 criterion_main!(benches);

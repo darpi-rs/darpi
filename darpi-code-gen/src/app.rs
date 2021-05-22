@@ -289,10 +289,11 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
         route_match.push(quote! {
             #i => {
                  if #id::is_match(method.as_str()) {
+                    let args_vec = rm.get_args().to_vec();
                     let args = darpi::Args{
                         request: r,
                         container: inner_module.clone(),
-                        route_args: #id::get_tuple_args(&route_str, rm.get_args()),
+                        route_args: #id::get_tuple_args(&route_str, &args_vec),
                     };
                     let mut rb = Handler::call(#ha, args).await.unwrap();
                     #(#middleware_res )*
