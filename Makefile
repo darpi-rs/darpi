@@ -17,6 +17,14 @@ publish:
 benches:
 	cargo bench --benches -- --output-format  bencher
 
+.PHONY: route
+route:
+	cargo bench --benches -- dfa_match --output-format  bencher
+
+.PHONY: pprof
+pprof:
+	cargo bench --benches -- dfa_match --profile-time 5
+
 .PHONY: cloc
 cloc:
 	cloc --exclude-dir=target .
