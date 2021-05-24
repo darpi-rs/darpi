@@ -38,7 +38,7 @@ async fn hello_world(#[request] r: Request<Body>) -> Result<UpgradeWS, String> {
     Ok(resp)
 }
 
-#[tokio::main]
+#[darpi::main]
 async fn main() -> Result<(), darpi::Error> {
     app!({
         address: "127.0.0.1:3000",

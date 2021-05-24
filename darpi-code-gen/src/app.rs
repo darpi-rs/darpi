@@ -312,7 +312,6 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
     }
 
     let app = quote! {
-        static __ONCE_INTERNAL__: std::sync::Once = std::sync::Once::new();
         #(#route_defs )*
 
          pub struct AppImpl {
@@ -375,21 +374,6 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
                     darpi::log::error!("panic reason:  `{}`", panic);
                     default_hook(panic);
                 }));
-
-                __ONCE_INTERNAL__.call_once(|| {
-                    darpi::rayon::ThreadPoolBuilder::new()
-                    .panic_handler(|panic| {
-                        let msg = match panic.downcast_ref::<&'static str>() {
-                            Some(s) => *s,
-                            None => match panic.downcast_ref::<String>() {
-                                Some(s) => &s[..],
-                                None => "Unknown",
-                            },
-                        };
-                        darpi::log::warn!("panic reason:  `{}`", msg);
-                    })
-                    .build_global().unwrap();
-                });
 
                 let make_svc = darpi::service::make_service_fn(move |_conn| {
                     let inner_module = std::sync::Arc::clone(&module);
