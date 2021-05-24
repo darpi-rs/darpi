@@ -9,7 +9,7 @@ use std::num::TryFromIntError;
 #[cfg(test)]
 use std::sync::Arc;
 
-#[tokio::test]
+#[darpi::test]
 async fn increment_byte_ok() {
     let req = Request::get("http://127.0.0.1:3000/increment_bute/5")
         .body(Body::empty())

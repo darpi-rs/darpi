@@ -461,7 +461,7 @@ pub(crate) async fn do_something1(#[query] p: Option<Name>) -> String {
     format!("user {:#?}", p)
 }
 
-#[tokio::main]
+#[darpi::main]
 async fn main() -> Result<(), darpi::Error> {
     env_logger::builder().is_test(true).try_init().unwrap();
 

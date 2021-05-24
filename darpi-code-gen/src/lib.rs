@@ -4,6 +4,7 @@ mod app;
 mod handler;
 mod job;
 mod logger;
+mod main_macro;
 mod middleware;
 mod request;
 
@@ -11,6 +12,16 @@ use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::{format_ident, quote, ToTokens};
 use syn::{parse, parse_macro_input, Error, ExprLit, ItemStruct, Pat, PatType, Type};
+
+#[proc_macro_attribute]
+pub fn main(args: TokenStream, item: TokenStream) -> TokenStream {
+    main_macro::main(args, item, false)
+}
+
+#[proc_macro_attribute]
+pub fn test(args: TokenStream, item: TokenStream) -> TokenStream {
+    main_macro::main(args, item, true)
+}
 
 #[proc_macro_derive(Path)]
 pub fn from_path(input: TokenStream) -> TokenStream {

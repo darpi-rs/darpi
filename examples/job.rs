@@ -115,7 +115,13 @@ async fn do_something(
     format!("path: {:#?} middleware: {}", path, m_str)
 }
 
-#[tokio::main]
+#[darpi::main({
+    threads: {
+        async: 4,
+        max_blocking: 10,
+        max_cpu: 2
+    }
+})]
 async fn main() -> Result<(), darpi::Error> {
     env_logger::builder().is_test(true).init();
 

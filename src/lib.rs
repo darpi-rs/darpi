@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub use darpi_code_gen::{
-    app, handler, job_factory, middleware, req_formatter, resp_formatter, Path, Query,
+    app, handler, job_factory, main, middleware, req_formatter, resp_formatter, test, Path, Query,
 };
 pub use darpi_web::{
     handler::Args, handler::Handler, job, job::RequestJobFactory, job::ResponseJobFactory, logger,
