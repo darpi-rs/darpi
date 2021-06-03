@@ -1,7 +1,7 @@
 use darpi::job::{CpuJob, FutureJob, IOBlockingJob};
 use darpi::{
-    app, handler, job_factory, logger::DefaultFormat, middleware, App, Body, Path, Query, Request,
-    RequestParts, Response,
+    app, handler, job_factory, logger::DefaultFormat, middleware, tokio::time::sleep,
+    tokio::time::Duration, App, Body, Path, Query, Request, RequestParts, Response,
 };
 use darpi_middleware::{log_request, log_response};
 use env_logger;
@@ -68,7 +68,6 @@ async fn hello_world(#[request_parts] r: &RequestParts) -> &'static str {
             for _ in 0..10000000 {
                 r += 1;
             }
-            println!("first_sync_job1 finished in the background. {}", r)
         })
         .spawn()
         .expect("ohh noes");
@@ -125,7 +124,7 @@ async fn do_something(
 async fn main() -> Result<(), darpi::Error> {
     env_logger::builder().is_test(true).init();
 
-    app!({
+    let mut app = app!({
         address: "127.0.0.1:3000",
         jobs: {
             request: [],
@@ -144,7 +143,17 @@ async fn main() -> Result<(), darpi::Error> {
             method: GET,
             handler: do_something
         }]
-    })
-    .run()
-    .await
+    });
+
+    let shutdown = app.shutdown_signal().unwrap();
+
+    FutureJob::from(app.run()).spawn().unwrap();
+
+    sleep(Duration::from_secs(5)).await;
+
+    shutdown.send(()).unwrap();
+
+    println!("shutdown server");
+
+    Ok(())
 }

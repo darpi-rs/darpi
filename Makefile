@@ -19,11 +19,11 @@ benches:
 
 .PHONY: route
 route:
-	cargo bench --benches -- dfa_match --output-format  bencher
+	cargo bench -- --output-format  bencher
 
 .PHONY: pprof
 pprof:
-	cargo bench --benches -- dfa_match --profile-time 5
+	cargo bench -- --profile-time 60
 
 .PHONY: cloc
 cloc:

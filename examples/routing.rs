@@ -1,6 +1,3 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use pprof::criterion::{Output, PProfProfiler};
-
 macro_rules! register {
     (colon) => {{
         register!(finish => ":p1", ":p2", ":p3", ":p4")
@@ -157,51 +154,7 @@ fn call() -> impl Iterator<Item = &'static str> {
     ];
     std::array::IntoIter::new(arr)
 }
-
-fn bench_regex_set(c: &mut Criterion) {
-    let set = regex::RegexSet::new(register!(regex)).unwrap();
-    c.bench_function("bench_regex_set", |b| {
-        b.iter(|| {
-            for call in call() {
-                let _ = set.matches(black_box(call));
-            }
-        });
-    });
-}
-
-fn bench_actix(c: &mut Criterion) {
-    let mut router = actix_router::Router::<bool>::build();
-    for route in register!(brackets) {
-        router.path(route, true);
-    }
-    let router = router.finish();
-    c.bench_function("bench_actix", |b| {
-        b.iter(|| {
-            for call in call() {
-                let mut path = actix_router::Path::new(call);
-                let _ = router.recognize(&mut path);
-            }
-        });
-    });
-}
-
-fn bench_route_recognizer(c: &mut Criterion) {
-    let mut router = route_recognizer::Router::new();
-    for route in register!(colon) {
-        router.add(route, true);
-    }
-    c.bench_function("bench_route_recognizer", |b| {
-        b.iter(|| {
-            for call in call() {
-                let _ = router.recognize(black_box(call));
-            }
-        });
-    });
-}
-
-fn compare_routers(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Compare Routers");
-
+fn main() {
     // let mut matchit = matchit::Node::new();
     // for route in register!(colon) {
     //     matchit.insert(route, true).unwrap();
@@ -215,20 +168,10 @@ fn compare_routers(c: &mut Criterion) {
     // });
 
     let gonzales = gonzales::RouterBuilder::new().build(register!(brackets));
-    group.bench_function("gonzales", |b| {
-        b.iter(|| {
-            for route in call() {
-                black_box(gonzales.route(route).unwrap());
-            }
-        });
-    });
-    group.finish();
-}
 
-criterion_group! {
-    name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = compare_routers
+    loop {
+        for route in call() {
+            gonzales.route(route).unwrap();
+        }
+    }
 }
-//criterion_group! {benches, compare_routers, bench_regex_set, bench_actix, bench_route_recognizer}
-criterion_main!(benches);

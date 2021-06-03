@@ -6,8 +6,8 @@ pub use darpi_code_gen::{
 pub use darpi_web::{
     handler::Args, handler::Handler, job, job::RequestJobFactory, job::ResponseJobFactory, logger,
     logger::ReqFormatter, logger::RespFormatter, middleware::RequestMiddleware,
-    middleware::ResponseMiddleware, oneshot, request, response, spawn, xml::Xml, yaml::Yaml, App,
-    Json,
+    middleware::ResponseMiddleware, oneshot, request, response, response::Responder, spawn,
+    xml::Xml, yaml::Yaml, App, Json,
 };
 
 pub trait Route<T = ()> {

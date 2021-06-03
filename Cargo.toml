@@ -22,11 +22,11 @@ members = [
     "darpi-graphql"
 ]
 
-[profile.release]
-panic = "unwind"
-lto = true
-opt-level = 3
-codegen-units = 1
+#[profile.release]
+#panic = "unwind"
+#lto = true
+#opt-level = 3
+#codegen-units = 1
 
 [dependencies]
 darpi-web = {path = "./darpi-web"}
@@ -63,6 +63,9 @@ futures-channel = "0.3"
 url = "2.0.0"
 serde_urlencoded = "0.7.0"
 pprof = {version="0.4.3", features=["criterion", "protobuf", "flamegraph"]}
+rustls = "0.19"
+tokio-rustls = "0.22"
+
 
 [[bench]]
 name = "hello_world"
@@ -77,4 +80,7 @@ name = "echo_hyper"
 harness = false
 
 [profile.bench]
+debug = true
+
+[profile.release]
 debug = true

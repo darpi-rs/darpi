@@ -1,4 +1,4 @@
-`gonzales` is the fastest http router in the business and has no unsafe code.
+`gonzales` has no unsafe code and is very fast.
 
 The benchmarks include 130 routes per iteration.
 

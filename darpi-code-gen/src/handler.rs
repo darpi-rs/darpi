@@ -396,8 +396,14 @@ fn make_json_body(
 
     let inner = &path.path.segments.last().expect("no body").arguments;
 
+    let inner = if inner.is_empty() {
+        quote! {}
+    } else {
+        quote! {#inner::}
+    };
+
     let output = quote! {
-        match #format::#inner::assert_content_type(parts.headers.get("content-type"), #module_ident).await {
+        match #format::#inner assert_content_type(parts.headers.get("content-type"), #module_ident).await {
             Ok(()) => {}
             Err(e) => return Ok(e.respond_err()),
         }

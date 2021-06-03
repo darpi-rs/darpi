@@ -6,3 +6,4 @@ darpi-code-gen/Cargo.lock
 Cargo.lock
 .idea
 *.iml
+.DS_Store

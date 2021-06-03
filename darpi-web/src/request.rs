@@ -7,6 +7,7 @@ use hyper::Body;
 use hyper::Response;
 use serde::de;
 use serde_urlencoded;
+use std::convert::Infallible;
 use std::sync::Arc;
 
 #[async_trait]
@@ -47,6 +48,24 @@ where
     }
     async fn extract(headers: &HeaderMap<HeaderValue>, b: Body, _: Arc<C>) -> Result<T, E> {
         F::extract(headers, b).await
+    }
+}
+
+#[derive(Display)]
+pub enum StringErr {
+    ToBytes,
+    ToString,
+}
+
+impl ResponderError for StringErr {}
+
+#[async_trait]
+impl FromRequestBody<String, StringErr> for String {
+    async fn extract(_: &HeaderMap, b: Body) -> Result<String, StringErr> {
+        let full_body = hyper::body::to_bytes(b)
+            .await
+            .map_err(|_| StringErr::ToBytes)?;
+        String::from_utf8(full_body.to_vec()).map_err(|_| StringErr::ToString)
     }
 }
 
