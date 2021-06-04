@@ -1,5 +1,4 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use pprof::criterion::{Output, PProfProfiler};
 
 macro_rules! register {
     (colon) => {{
@@ -202,17 +201,17 @@ fn bench_route_recognizer(c: &mut Criterion) {
 fn compare_routers(c: &mut Criterion) {
     let mut group = c.benchmark_group("Compare Routers");
 
-    // let mut matchit = matchit::Node::new();
-    // for route in register!(colon) {
-    //     matchit.insert(route, true).unwrap();
-    // }
-    // group.bench_function("matchit", |b| {
-    //     b.iter(|| {
-    //         for route in call() {
-    //             black_box(matchit.at(route.as_ref()).unwrap());
-    //         }
-    //     });
-    // });
+    let mut matchit = matchit::Node::new();
+    for route in register!(colon) {
+        matchit.insert(route, true).unwrap();
+    }
+    group.bench_function("matchit", |b| {
+        b.iter(|| {
+            for route in call() {
+                black_box(matchit.at(route.as_ref()).unwrap());
+            }
+        });
+    });
 
     let gonzales = gonzales::RouterBuilder::new().build(register!(brackets));
     group.bench_function("gonzales", |b| {
@@ -225,10 +224,5 @@ fn compare_routers(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group! {
-    name = benches;
-    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets = compare_routers
-}
-//criterion_group! {benches, compare_routers, bench_regex_set, bench_actix, bench_route_recognizer}
+criterion_group! {benches, compare_routers, bench_regex_set, bench_actix, bench_route_recognizer}
 criterion_main!(benches);

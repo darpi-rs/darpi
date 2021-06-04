@@ -158,8 +158,8 @@ impl Array {
 #[derive(Eq, PartialEq, Debug)]
 pub struct Match {
     index: usize,
-    args: Array,
-    multi_segments: Array,
+    args: Option<Array>,
+    multi_segments: Option<Array>,
 }
 
 impl Match {
@@ -168,12 +168,12 @@ impl Match {
         self.index
     }
     #[inline(always)]
-    pub fn get_args(&self) -> &Array {
-        &self.args
+    pub fn get_args(&self) -> Option<&Array> {
+        self.args.as_ref()
     }
     #[inline(always)]
-    pub fn get_segments(&self) -> &Array {
-        &self.multi_segments
+    pub fn get_segments(&self) -> Option<&Array> {
+        self.multi_segments.as_ref()
     }
 }
 
@@ -193,8 +193,8 @@ impl Router {
         let mut match_index = None;
         let mut cur_states = &*self.states;
         let mut i = 0;
-        let mut args = Array::new();
-        let mut multi_segments = Array::new();
+        let mut args: Option<Array> = None;
+        let mut multi_segments: Option<Array> = None;
 
         'outer: loop {
             if i == bytes.len() {
@@ -204,13 +204,22 @@ impl Router {
 
             if self.has_asterisk {
                 if let Some(index) = cur_states[ASTERISK_BYTE_INDEX].match_index {
+                    let ms = match multi_segments {
+                        Some(ref mut ms) => Some(ms),
+                        None => {
+                            multi_segments = Some(Array::new());
+                            multi_segments.as_mut()
+                        }
+                    }
+                    .unwrap();
+
                     let mut start = i;
 
                     loop {
                         let last = i == bytes.len() - 1;
                         if bytes[i] == b'/' || last {
                             i += last as usize;
-                            multi_segments.push((start, i));
+                            ms.push((start, i));
                             start = i + 1;
                         }
                         i += 1;
@@ -250,7 +259,16 @@ impl Router {
                     i += 1;
                 }
 
-                args.push((start, i));
+                let a = match args {
+                    Some(ref mut ms) => Some(ms),
+                    None => {
+                        args = Some(Array::new());
+                        args.as_mut()
+                    }
+                }
+                .unwrap();
+
+                a.push((start, i));
                 if end {
                     break 'outer;
                 }
@@ -280,12 +298,15 @@ struct State {
 mod tests {
     use super::*;
 
-    fn vec_to_array(v: Vec<(usize, usize)>) -> Array {
+    fn vec_to_array(v: Vec<(usize, usize)>) -> Option<Array> {
+        if v.is_empty() {
+            return None;
+        }
         let mut a = Array::new();
         for i in v {
             a.push(i);
         }
-        a
+        Some(a)
     }
 
     #[test]
