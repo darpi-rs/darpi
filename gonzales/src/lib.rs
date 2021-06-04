@@ -189,6 +189,7 @@ impl Router {
         P: AsRef<[u8]>,
     {
         let bytes = r.as_ref();
+
         let mut state;
         let mut match_index = None;
         let mut cur_states = &*self.states;
@@ -200,7 +201,20 @@ impl Router {
             if i == bytes.len() {
                 break;
             }
-            let byte = self.casing[bytes[i] as usize];
+
+            loop {
+                state = &cur_states[self.casing[bytes[i] as usize] as usize];
+                if let Some(trans) = &state.trans {
+                    match_index = state.match_index;
+                    cur_states = trans;
+                    i += 1;
+                    if i == bytes.len() {
+                        break 'outer;
+                    }
+                } else {
+                    break;
+                }
+            }
 
             if self.has_asterisk {
                 if let Some(index) = cur_states[ASTERISK_BYTE_INDEX].match_index {
@@ -227,14 +241,6 @@ impl Router {
                 }
             }
 
-            state = &cur_states[byte as usize];
-
-            if let Some(trans) = &state.trans {
-                match_index = state.match_index;
-                cur_states = trans;
-                i += 1;
-                continue;
-            }
             let arg = &cur_states[RESERVED_BYTE_INDEX];
 
             if let Some(trans) = arg.trans.as_deref() {
@@ -287,6 +293,22 @@ mod tests {
         }
         a
     }
+
+    // #[test]
+    // fn test_123() {
+    //     let route = vec!["/hello/{user_id}/*", "/helloworld"];
+    //     let router = RouterBuilder::new().build(route);
+    //
+    //     let m = router.route("/hello/petar/i");
+    //     assert_eq!(
+    //         Some(Match {
+    //             index: 0,
+    //             args: vec_to_array(vec![(7, 12)]),
+    //             multi_segments: vec_to_array(vec![(13, 14), (15, 17), (18, 22)]),
+    //         }),
+    //         m
+    //     );
+    // }
 
     #[test]
     fn test_thai() {
