@@ -64,6 +64,7 @@ async fn first_sync_io_job() -> IOBlockingJob {
 async fn hello_world(#[request_parts] r: &RequestParts) -> &'static str {
     if r.headers.get("destroy-cpu-header").is_some() {
         CpuJob::from(|| {
+            #[allow(unused_variables)]
             let mut r = 0;
             for _ in 0..10000000 {
                 r += 1;

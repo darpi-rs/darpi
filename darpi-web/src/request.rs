@@ -7,7 +7,6 @@ use hyper::Body;
 use hyper::Response;
 use serde::de;
 use serde_urlencoded;
-use std::convert::Infallible;
 use std::sync::Arc;
 
 #[async_trait]
