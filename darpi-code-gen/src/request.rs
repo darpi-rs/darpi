@@ -61,6 +61,7 @@ pub(crate) fn make_path_type(input: TokenStream) -> TokenStream {
             }
 
             impl darpi::response::ErrResponder<darpi::request::PathError, darpi::Body> for #name {
+                #[cold]
                 fn respond_err(e: darpi::request::PathError) -> darpi::Response<darpi::Body> {
                     let msg = match e {
                         darpi::request::PathError::Deserialize(msg) => msg,
@@ -88,6 +89,7 @@ pub(crate) fn make_query_type(input: TokenStream) -> TokenStream {
 
     let tokens = quote! {
         impl darpi::response::ErrResponder<darpi::request::QueryPayloadError, darpi::Body> for #name {
+            #[cold]
             fn respond_err(e: darpi::request::QueryPayloadError) -> darpi::Response<darpi::Body> {
                 let msg = match e {
                     darpi::request::QueryPayloadError::Deserialize(de) => de.to_string(),

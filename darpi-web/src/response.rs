@@ -180,6 +180,7 @@ where
 }
 
 impl<T> ErrResponder<crate::request::QueryPayloadError, Body> for Option<T> {
+    #[cold]
     fn respond_err(e: crate::request::QueryPayloadError) -> Response<Body> {
         let msg = match e {
             crate::request::QueryPayloadError::Deserialize(de) => de.to_string(),

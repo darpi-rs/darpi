@@ -62,6 +62,7 @@ pub struct GraphQLBody<T>(pub T);
 impl darpi::response::ErrResponder<darpi::request::QueryPayloadError, darpi::Body>
     for GraphQLBody<Request>
 {
+    #[cold]
     fn respond_err(e: QueryPayloadError) -> darpi::Response<Body> {
         Request::respond_err(e)
     }
