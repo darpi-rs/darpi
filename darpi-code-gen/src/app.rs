@@ -15,7 +15,19 @@ pub(crate) fn make_app(config: Config) -> Result<TokenStream, SynError> {
     let address_value = {
         let av = match &config.address {
             Address::Ident(id) => id.to_token_stream(),
-            Address::Lit(lit) => lit.to_token_stream(),
+            Address::Lit(lit) => {
+                let lit_str = lit.value();
+                let address: Result<std::net::SocketAddr, _> = lit_str.parse();
+
+                if let Err(ae) = address {
+                    return Err(Error::new(
+                        lit.span(),
+                        format!("invalid server address: `{}` error: `{}`", lit_str, ae),
+                    ));
+                }
+
+                lit.to_token_stream()
+            }
         };
         let q = quote! {&#av};
         q.to_token_stream()

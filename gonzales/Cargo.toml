@@ -15,7 +15,7 @@ categories = ["web-programming", "data-structures", "network-programming"]
 smallvec = "1.6.1"
 
 [dev-dependencies]
-pprof = {version="0.4.3", features=["criterion", "protobuf", "flamegraph"]}
+#pprof = {version="0.4.3", features=["criterion", "protobuf", "flamegraph"]}
 criterion = {version = "0.3", features = ["async_tokio", "html_reports"]}
 matchit = {git = "https://github.com/ibraheemdev/matchit.git", branch = "master"}
 actix-router = "0.2.7"

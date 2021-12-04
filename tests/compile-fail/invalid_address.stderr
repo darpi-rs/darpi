@@ -1,0 +1,5 @@
+error: invalid server address: `127.0.0.1:foo` error: `invalid IP address syntax`
+  --> tests/compile-fail/invalid_address.rs:13:18
+   |
+13 |         address: "127.0.0.1:foo",
+   |                  ^^^^^^^^^^^^^^^
