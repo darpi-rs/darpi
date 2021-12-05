@@ -2,10 +2,14 @@ use darpi::response::ResponderError;
 use darpi::{handler, Path};
 #[cfg(test)]
 use darpi::{Args, Body, Handler, Request, StatusCode};
+use darpi_web::Json;
 use derive_more::Display;
+use http::header::HeaderName;
+use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::num::TryFromIntError;
+use std::str::FromStr;
 #[cfg(test)]
 use std::sync::Arc;
 
@@ -47,6 +51,46 @@ async fn increment_byte_not_ok() {
     .unwrap();
 
     assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, resp.status());
+}
+
+#[tokio::test]
+async fn set_correct_header() {
+    let req = Request::get("http://127.0.0.1:3000/json")
+        .body(Body::empty())
+        .unwrap();
+
+    let resp = Handler::call(
+        json,
+        Args {
+            request: req,
+            container: Arc::new(()),
+            route_args: (),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(StatusCode::OK, resp.status());
+    assert_eq!(
+        b"timeout=5",
+        resp.headers().get("Keep-Alive").unwrap().as_bytes()
+    )
+}
+
+#[derive(Serialize)]
+pub struct Resp {
+    name: String,
+}
+
+#[handler]
+async fn json() -> Json<Resp> {
+    Json::new(Resp {
+        name: "John".to_string(),
+    })
+    .header(
+        HeaderName::from_str("Keep-Alive").unwrap(),
+        HeaderValue::from_str("timeout=5").unwrap(),
+    )
 }
 
 #[derive(Display, Debug)]

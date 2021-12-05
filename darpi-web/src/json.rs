@@ -3,6 +3,7 @@ use crate::response::{Responder, ResponderError};
 use crate::Response;
 use async_trait::async_trait;
 use derive_more::Display;
+use http::header::HeaderName;
 use http::{header, HeaderMap, HeaderValue};
 use hyper::Body;
 use serde::de::DeserializeOwned;
@@ -10,11 +11,22 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Error;
 use std::{fmt, ops};
 
-pub struct Json<T>(pub T);
+pub struct Json<T> {
+    t: T,
+    hm: HeaderMap,
+}
 
 impl<T> Json<T> {
-    pub fn into_inner(self) -> T {
-        self.0
+    pub fn new(t: T) -> Self {
+        Self {
+            t,
+            hm: Default::default(),
+        }
+    }
+
+    pub fn header(mut self, key: HeaderName, value: HeaderValue) -> Self {
+        self.hm.append(key, value);
+        self
     }
 
     async fn deserialize_future(b: Body) -> Result<Json<T>, JsonErr>
@@ -23,7 +35,7 @@ impl<T> Json<T> {
     {
         let full_body = hyper::body::to_bytes(b).await?;
         let ser: T = serde_json::from_slice(&full_body)?;
-        Ok(Json(ser))
+        Ok(Json::new(ser))
     }
 }
 
@@ -55,7 +67,7 @@ where
         D: Deserializer<'de>,
     {
         let deser = T::deserialize(deserializer)?.into();
-        Ok(Json(deser))
+        Ok(Json::new(deser))
     }
 }
 
@@ -63,13 +75,13 @@ impl<T> ops::Deref for Json<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        &self.0
+        &self.t
     }
 }
 
 impl<T> ops::DerefMut for Json<T> {
     fn deref_mut(&mut self) -> &mut T {
-        &mut self.0
+        &mut self.t
     }
 }
 
@@ -78,7 +90,7 @@ where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Json: {:?}", self.0)
+        write!(f, "Json: {:?}", self.t)
     }
 }
 
@@ -87,7 +99,7 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+        fmt::Display::fmt(&self.t, f)
     }
 }
 
@@ -96,12 +108,17 @@ where
     T: Serialize,
 {
     fn respond(self) -> Response<Body> {
-        match serde_json::to_string(&self.0) {
-            Ok(body) => Response::builder()
-                .header(header::CONTENT_TYPE, "application/json")
-                .status(self.status_code())
-                .body(Body::from(body))
-                .expect("this cannot happen"),
+        match serde_json::to_string(&self.t) {
+            Ok(body) => {
+                let mut rb = Response::builder()
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .status(self.status_code());
+
+                for (hk, hv) in self.hm.iter() {
+                    rb = rb.header(hk, hv);
+                }
+                rb.body(Body::from(body)).expect("this cannot happen")
+            }
             Err(e) => e.respond_err(),
         }
     }

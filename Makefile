@@ -28,3 +28,7 @@ pprof:
 .PHONY: cloc
 cloc:
 	cloc --exclude-dir=target .
+
+.PHONY: test
+test:
+	cargo test --all

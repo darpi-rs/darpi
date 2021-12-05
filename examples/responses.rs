@@ -1,6 +1,9 @@
 use darpi::{app, handler, App, Body, Json, Responder, Response, StatusCode};
 use env_logger;
+use http::header::HeaderName;
+use http::HeaderValue;
 use serde::Serialize;
+use std::str::FromStr;
 
 pub struct HelloWorldResp;
 
@@ -35,9 +38,13 @@ pub struct Resp {
 
 #[handler]
 async fn json() -> Json<Resp> {
-    Json(Resp {
+    Json::new(Resp {
         name: "John".to_string(),
     })
+    .header(
+        HeaderName::from_str("Keep-Alive").unwrap(),
+        HeaderValue::from_str("timeout=5").unwrap(),
+    )
 }
 
 #[darpi::main]
