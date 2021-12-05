@@ -1,5 +1,6 @@
-use darpi::{app, handler, App, Body, Responder, Response, StatusCode};
+use darpi::{app, handler, App, Body, Json, Responder, Response, StatusCode};
 use env_logger;
+use serde::Serialize;
 
 pub struct HelloWorldResp;
 
@@ -27,6 +28,18 @@ async fn hello_world1() -> Response<Body> {
         .expect("this cannot happen")
 }
 
+#[derive(Serialize)]
+pub struct Resp {
+    name: String,
+}
+
+#[handler]
+async fn json() -> Json<Resp> {
+    Json(Resp {
+        name: "John".to_string(),
+    })
+}
+
 #[darpi::main]
 async fn main() -> Result<(), darpi::Error> {
     env_logger::builder().is_test(true).init();
@@ -41,6 +54,10 @@ async fn main() -> Result<(), darpi::Error> {
             route: "/hello_world1",
             method: GET,
             handler: hello_world1
+        },{
+            route: "/json",
+            method: GET,
+            handler: json
         }]
     })
     .run()
