@@ -20,14 +20,6 @@ test regex ... bench:       33513 ns/iter (+/- 3388)
 test route-recognizer ... bench:       13622 ns/iter (+/- 1177)
 ```
 
-It costs `1ns` per character of input for matching.
-That leads to most routes being matched or not within `10ns` to `20ns`.
-It supports case insensitive matching without additional runtime costs.
-It also supports path arguments extraction.
-
-Under the hood, it uses a [DFA](https://en.wikipedia.org/wiki/Deterministic_finite_automaton) with a few extra perks.
-Many thanks to [BurntSushi](https://github.com/BurntSushi) for his work in this field and his great articles such as [this](https://blog.burntsushi.net/transducers/) .
-
 ```rust
         let route = vec!["/hello/{user_id}", "/helloworld"];
         let router = RouterBuilder::new()
